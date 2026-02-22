@@ -1346,6 +1346,41 @@ var Ano = (() => {
   .ano-end-actions button.primary:hover {
     background: var(--ano-accent-hover);
   }
+  .ano-end-actions button:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+  .ano-end-link-result {
+    display: flex;
+    gap: 6px;
+    padding: 0 20px 16px;
+  }
+  .ano-end-link-input {
+    flex: 1;
+    padding: 7px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--ano-border);
+    background: var(--ano-bg-secondary);
+    color: var(--ano-text);
+    font-size: 12px;
+    font-family: monospace;
+    outline: none;
+  }
+  .ano-end-link-copy {
+    padding: 7px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--ano-accent);
+    background: var(--ano-accent);
+    color: #fff;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .ano-end-link-copy:hover {
+    background: var(--ano-accent-hover);
+  }
   .ano-end-annotations {
     padding: 0 20px 16px;
   }
@@ -2725,10 +2760,42 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
       }, "Dismiss");
       const linkBtn = el("button", {
         onClick: () => {
+          linkBtn.textContent = "Uploading\u2026";
+          linkBtn.disabled = true;
           ctx.events.emit("share");
-          dismiss();
         }
       }, "Get Link");
+      const linkResult = el("div", { className: "ano-end-link-result" });
+      linkResult.style.display = "none";
+      const linkInput = el("input", { readOnly: true, className: "ano-end-link-input" });
+      const copyBtn = el("button", {
+        className: "ano-end-link-copy",
+        onClick: () => {
+          navigator.clipboard.writeText(linkInput.value).then(() => {
+            copyBtn.textContent = "Copied!";
+            setTimeout(() => {
+              copyBtn.textContent = "Copy";
+            }, 2e3);
+          });
+        }
+      }, "Copy");
+      linkResult.appendChild(linkInput);
+      linkResult.appendChild(copyBtn);
+      const offComplete = ctx.events.on("share:complete", (url) => {
+        linkBtn.style.display = "none";
+        linkInput.value = url;
+        linkResult.style.display = "";
+      });
+      const offError = ctx.events.on("share:error", () => {
+        linkBtn.textContent = "Failed \u2014 retry";
+        linkBtn.disabled = false;
+      });
+      const origHide = hide;
+      hide = function() {
+        offComplete();
+        offError();
+        origHide();
+      };
       const exportBtn = el("button", {
         className: "primary",
         onClick: () => {
@@ -2740,6 +2807,7 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
       actions.appendChild(linkBtn);
       actions.appendChild(exportBtn);
       dialog.appendChild(actions);
+      dialog.appendChild(linkResult);
       overlay.appendChild(dialog);
       shadow.appendChild(overlay);
       document.body.appendChild(host);
@@ -3484,6 +3552,7 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
       if (ctx.recordingManager) {
         ctx.recordingManager.clearBlob();
       }
+      clearInstance();
     });
     events.on("session:action", (count) => {
       ctx.toolbar.updateCount(count);

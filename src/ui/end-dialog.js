@@ -100,10 +100,48 @@ export function createEndDialog(ctx) {
 
     const linkBtn = el('button', {
       onClick: () => {
+        linkBtn.textContent = 'Uploading…';
+        linkBtn.disabled = true;
         ctx.events.emit('share');
-        dismiss();
       },
     }, 'Get Link');
+
+    // Share result — show URL inline
+    const linkResult = el('div', { className: 'ano-end-link-result' });
+    linkResult.style.display = 'none';
+
+    const linkInput = el('input', { readOnly: true, className: 'ano-end-link-input' });
+    const copyBtn = el('button', {
+      className: 'ano-end-link-copy',
+      onClick: () => {
+        navigator.clipboard.writeText(linkInput.value).then(() => {
+          copyBtn.textContent = 'Copied!';
+          setTimeout(() => { copyBtn.textContent = 'Copy'; }, 2000);
+        });
+      },
+    }, 'Copy');
+
+    linkResult.appendChild(linkInput);
+    linkResult.appendChild(copyBtn);
+
+    const offComplete = ctx.events.on('share:complete', (url) => {
+      linkBtn.style.display = 'none';
+      linkInput.value = url;
+      linkResult.style.display = '';
+    });
+
+    const offError = ctx.events.on('share:error', () => {
+      linkBtn.textContent = 'Failed — retry';
+      linkBtn.disabled = false;
+    });
+
+    // Clean up listeners when dialog closes
+    const origHide = hide;
+    hide = function () {
+      offComplete();
+      offError();
+      origHide();
+    };
 
     const exportBtn = el('button', {
       className: 'primary',
@@ -117,6 +155,7 @@ export function createEndDialog(ctx) {
     actions.appendChild(linkBtn);
     actions.appendChild(exportBtn);
     dialog.appendChild(actions);
+    dialog.appendChild(linkResult);
 
     overlay.appendChild(dialog);
     shadow.appendChild(overlay);

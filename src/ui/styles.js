@@ -744,6 +744,41 @@ export const endDialogCSS = `
   .ano-end-actions button.primary:hover {
     background: var(--ano-accent-hover);
   }
+  .ano-end-actions button:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+  .ano-end-link-result {
+    display: flex;
+    gap: 6px;
+    padding: 0 20px 16px;
+  }
+  .ano-end-link-input {
+    flex: 1;
+    padding: 7px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--ano-border);
+    background: var(--ano-bg-secondary);
+    color: var(--ano-text);
+    font-size: 12px;
+    font-family: monospace;
+    outline: none;
+  }
+  .ano-end-link-copy {
+    padding: 7px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--ano-accent);
+    background: var(--ano-accent);
+    color: #fff;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .ano-end-link-copy:hover {
+    background: var(--ano-accent-hover);
+  }
   .ano-end-annotations {
     padding: 0 20px 16px;
   }

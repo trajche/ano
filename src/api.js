@@ -419,6 +419,7 @@ function wireEvents(ctx) {
     if (ctx.recordingManager) {
       ctx.recordingManager.clearBlob();
     }
+    clearInstance();
   });
 
   events.on('session:action', (count) => {
