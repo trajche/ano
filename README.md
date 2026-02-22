@@ -1,6 +1,6 @@
 # Ano
 
-Zero-dependency web annotation library. Highlights, pins, freehand drawing, sessions, and JSON export — all in a single script (~66 KB).
+Annotate any webpage, export structured context that LLMs and developers can act on — fix bugs faster. Highlights, pins, drawings, video, sessions, and JSON export in a single zero-dependency script (~66 KB).
 
 ## Quick Start
 
@@ -13,11 +13,12 @@ Zero-dependency web annotation library. Highlights, pins, freehand drawing, sess
 
 ## Features
 
-- **Highlights** — Select text to highlight with customizable colors
-- **Pins** — Click anywhere to drop a pin with a comment
-- **Freehand Drawing** — Draw on the page with an SVG canvas overlay
-- **Sessions** — Group annotations into timed sessions with optional video recording
-- **Export / Import** — Save and restore annotations as JSON
+- **Highlights** — Select text to highlight the exact content that's wrong
+- **Pins** — Click any element to pin it with a note — captures the selector and DOM context
+- **Freehand Drawing** — Circle areas, draw arrows, or mark up the page visually
+- **Sessions** — Record a timed session with actions, page navigations, and optional video
+- **Export / Import** — Export structured JSON that developers or LLMs can use to reproduce and fix issues
+- **Share** — Upload annotations (and video) to a link — paste it into a ticket or an LLM chat
 - **Zero Dependencies** — No frameworks, no build steps required
 
 ## Options

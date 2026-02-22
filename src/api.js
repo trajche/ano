@@ -11,7 +11,7 @@ import { createPopoverManager } from './ui/popover.js';
 import { createEndDialog } from './ui/end-dialog.js';
 import { createShortcutManager } from './shortcuts.js';
 import { injectHostStyles, removeHostStyles } from './ui/styles.js';
-import { exportAnnotations, buildExportData } from './io/export.js';
+import { exportAnnotations, exportJSON, exportVideo, buildExportData } from './io/export.js';
 import { importFromFile, importData } from './io/import.js';
 import { shareAnnotations } from './io/share.js';
 
@@ -527,6 +527,14 @@ function wireEvents(ctx) {
   // Export
   events.on('export', () => {
     exportAnnotations(store, getCrossPageAnnotations());
+  });
+
+  events.on('export:json', () => {
+    exportJSON(store, getCrossPageAnnotations());
+  });
+
+  events.on('export:video', () => {
+    exportVideo(store);
   });
 
   // Import

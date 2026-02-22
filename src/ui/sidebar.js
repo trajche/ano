@@ -98,7 +98,7 @@ export function createSidebar(ctx) {
       shareBtnEl.innerHTML = '';
       shareBtnEl.appendChild(svg('link'));
       shareBtnEl.appendChild(document.createTextNode('Get link'));
-      showToast(`Link copied! Expires in 7 days.\n<a href="${url}" target="_blank">${url}</a>`);
+      showToast(`Link copied — paste into a ticket or LLM. Expires in 7 days.\n<a href="${url}" target="_blank">${url}</a>`);
     });
     unsubShareError = ctx.events.on('share:error', () => {
       shareBtnEl.disabled = false;
@@ -144,7 +144,7 @@ export function createSidebar(ctx) {
       listEl.appendChild(
         el('div', { className: 'ano-list-empty' },
           filter === 'all'
-            ? 'No annotations yet. Select text, pin elements, or draw to get started.'
+            ? 'No annotations yet. Highlight text, pin elements, or draw to capture what needs fixing.'
             : `No ${filter} annotations.`
         )
       );

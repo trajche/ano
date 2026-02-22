@@ -23,7 +23,7 @@ var Ano = (() => {
     clear: () => clear,
     destroy: () => destroy2,
     endSession: () => endSession,
-    export: () => exportJSON,
+    export: () => exportJSON2,
     getAll: () => getAll,
     import: () => importJSON,
     importFile: () => importFile,
@@ -2713,7 +2713,7 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
       dialog.appendChild(el(
         "div",
         { className: "ano-end-header" },
-        el("h2", {}, "Session Complete"),
+        el("h2", {}, "Report Ready"),
         closeBtn
       ));
       const grid = el("div", { className: "ano-end-summary" });
@@ -2796,16 +2796,25 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
         offError();
         origHide();
       };
-      const exportBtn = el("button", {
+      const exportJsonBtn = el("button", {
         className: "primary",
         onClick: () => {
-          ctx.events.emit("export");
+          ctx.events.emit("export:json");
           dismiss();
         }
       }, "Export JSON");
       actions.appendChild(dismissBtn);
       actions.appendChild(linkBtn);
-      actions.appendChild(exportBtn);
+      if (summary.hasRecording) {
+        const exportVideoBtn = el("button", {
+          onClick: () => {
+            ctx.events.emit("export:video");
+            dismiss();
+          }
+        }, "Export Video");
+        actions.appendChild(exportVideoBtn);
+      }
+      actions.appendChild(exportJsonBtn);
       dialog.appendChild(actions);
       dialog.appendChild(linkResult);
       overlay.appendChild(dialog);
@@ -2971,6 +2980,37 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
     }
     return data;
   }
+  function exportJSON(store, crossPageAnnotations = []) {
+    const data = buildExportData(store, crossPageAnnotations);
+    const json = JSON.stringify(data, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `annotations-${formatDate()}.json`;
+    a.style.display = "none";
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      URL.revokeObjectURL(url);
+      a.remove();
+    }, 100);
+    return data;
+  }
+  function exportVideo(store) {
+    const recordings = store.getByType("recording");
+    for (const rec of recordings) {
+      if (rec.blob) {
+        downloadBlob(rec.blob, `recording-${rec.id}.webm`);
+      }
+    }
+    const sessions = store.getByType("session");
+    for (const ses of sessions) {
+      if (ses.blob) {
+        downloadBlob(ses.blob, `session-${ses.sessionId || ses.id}.webm`);
+      }
+    }
+  }
   function downloadBlob(blob, filename) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -3011,9 +3051,48 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
       exportedAt: (/* @__PURE__ */ new Date()).toISOString(),
       pageUrl: window.location.href,
       pageTitle: document.title,
+      environment: collectEnvironment(),
       annotations: merged,
       summary: buildSummary(merged)
     };
+  }
+  function collectEnvironment() {
+    const nav = navigator;
+    const scr = screen;
+    const conn = nav.connection || nav.mozConnection || nav.webkitConnection;
+    const env = {
+      userAgent: nav.userAgent,
+      platform: nav.platform,
+      language: nav.language,
+      languages: nav.languages ? [...nav.languages] : [nav.language],
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      timezoneOffset: (/* @__PURE__ */ new Date()).getTimezoneOffset(),
+      screen: {
+        width: scr.width,
+        height: scr.height,
+        devicePixelRatio: window.devicePixelRatio,
+        colorDepth: scr.colorDepth,
+        orientation: scr.orientation?.type || null
+      },
+      viewport: {
+        width: window.innerWidth,
+        height: window.innerHeight
+      },
+      deviceMemory: nav.deviceMemory || null,
+      hardwareConcurrency: nav.hardwareConcurrency || null,
+      touchSupport: nav.maxTouchPoints > 0,
+      cookiesEnabled: nav.cookieEnabled,
+      doNotTrack: nav.doNotTrack || null
+    };
+    if (conn) {
+      env.connection = {
+        effectiveType: conn.effectiveType || null,
+        downlink: conn.downlink || null,
+        rtt: conn.rtt || null,
+        saveData: conn.saveData || false
+      };
+    }
+    return env;
   }
   function cleanAnnotation(a) {
     const clean = {};
@@ -3183,38 +3262,66 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
 
   // src/io/share.js
   var TUS_BASE = "https://share.mk/files/";
+  async function tusUpload(bytes, metadata) {
+    const createRes = await fetch(TUS_BASE, {
+      method: "POST",
+      headers: {
+        "Tus-Resumable": "1.0.0",
+        "Upload-Length": String(bytes.byteLength),
+        "Upload-Metadata": metadata.map(([k, v]) => `${k} ${btoa(v)}`).join(",")
+      }
+    });
+    if (!createRes.ok) throw new Error(`Upload failed: ${createRes.status}`);
+    const location2 = createRes.headers.get("Location");
+    if (!location2) throw new Error("No Location header in response");
+    const fileUrl = location2.startsWith("http") ? location2 : new URL(location2, TUS_BASE).href;
+    const patchRes = await fetch(fileUrl, {
+      method: "PATCH",
+      headers: {
+        "Tus-Resumable": "1.0.0",
+        "Upload-Offset": "0",
+        "Content-Type": "application/offset+octet-stream"
+      },
+      body: bytes
+    });
+    if (!patchRes.ok) throw new Error(`Patch failed: ${patchRes.status}`);
+    return fileUrl;
+  }
   async function shareAnnotations(store, crossPageAnnotations, events) {
     try {
       events.emit("share:uploading");
       const data = buildExportData(store, crossPageAnnotations);
-      const json = JSON.stringify(data, null, 2);
-      const bytes = new TextEncoder().encode(json);
-      const createRes = await fetch(TUS_BASE, {
-        method: "POST",
-        headers: {
-          "Tus-Resumable": "1.0.0",
-          "Upload-Length": String(bytes.byteLength),
-          "Upload-Metadata": [
-            `filename ${btoa("annotations.json")}`,
-            `content-type ${btoa("application/json")}`,
-            `expires-in ${btoa("7d")}`
-          ].join(",")
+      const blobs = [];
+      for (const ann of store.getAll()) {
+        if ((ann.type === "recording" || ann.type === "session") && ann.blob) {
+          const filename = ann.type === "recording" ? `recording-${ann.id}.webm` : `session-${ann.sessionId || ann.id}.webm`;
+          blobs.push({ id: ann.id, type: ann.type, sessionId: ann.sessionId, blob: ann.blob, filename });
         }
-      });
-      if (!createRes.ok) throw new Error(`Upload failed: ${createRes.status}`);
-      const location2 = createRes.headers.get("Location");
-      if (!location2) throw new Error("No Location header in response");
-      const fileUrl = location2.startsWith("http") ? location2 : new URL(location2, TUS_BASE).href;
-      const patchRes = await fetch(fileUrl, {
-        method: "PATCH",
-        headers: {
-          "Tus-Resumable": "1.0.0",
-          "Upload-Offset": "0",
-          "Content-Type": "application/offset+octet-stream"
-        },
-        body: bytes
-      });
-      if (!patchRes.ok) throw new Error(`Patch failed: ${patchRes.status}`);
+      }
+      const videoUrls = /* @__PURE__ */ new Map();
+      for (const entry of blobs) {
+        const bytes = new Uint8Array(await entry.blob.arrayBuffer());
+        const url = await tusUpload(bytes, [
+          ["filename", entry.filename],
+          ["content-type", "video/webm"],
+          ["expires-in", "7d"]
+        ]);
+        videoUrls.set(entry.filename, url);
+      }
+      if (videoUrls.size > 0) {
+        for (const ann of data.annotations) {
+          if (ann._anchoring?.file && videoUrls.has(ann._anchoring.file)) {
+            ann._anchoring.file = videoUrls.get(ann._anchoring.file);
+          }
+        }
+      }
+      const json = JSON.stringify(data, null, 2);
+      const jsonBytes = new TextEncoder().encode(json);
+      const fileUrl = await tusUpload(jsonBytes, [
+        ["filename", "annotations.json"],
+        ["content-type", "application/json"],
+        ["expires-in", "7d"]
+      ]);
       try {
         await navigator.clipboard.writeText(fileUrl);
       } catch {
@@ -3643,6 +3750,12 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
     events.on("export", () => {
       exportAnnotations(store, getCrossPageAnnotations());
     });
+    events.on("export:json", () => {
+      exportJSON(store, getCrossPageAnnotations());
+    });
+    events.on("export:video", () => {
+      exportVideo(store);
+    });
     events.on("import", () => {
       importFromFile(ctx);
     });
@@ -3682,7 +3795,7 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
   function toJSON() {
     return currentApi ? currentApi.toJSON() : null;
   }
-  function exportJSON() {
+  function exportJSON2() {
     if (currentApi) return currentApi.export();
   }
   function importFile() {

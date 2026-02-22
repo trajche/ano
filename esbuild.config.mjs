@@ -64,7 +64,7 @@ async function build() {
 </head>
 <body>
   <h1>Ano Bookmarklet</h1>
-  <p>Annotate any webpage with highlights, pins, and drawings.</p>
+  <p>Annotate any webpage — export structured context that devs and LLMs can use to fix bugs faster.</p>
 
   <label for="url">ano.min.js URL</label>
   <input id="url" type="url" value="${defaultURL}" spellcheck="false">

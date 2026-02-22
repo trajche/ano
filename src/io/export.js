@@ -35,6 +35,43 @@ export function exportAnnotations(store, crossPageAnnotations = []) {
   return data;
 }
 
+export function exportJSON(store, crossPageAnnotations = []) {
+  const data = buildExportData(store, crossPageAnnotations);
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `annotations-${formatDate()}.json`;
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+
+  setTimeout(() => {
+    URL.revokeObjectURL(url);
+    a.remove();
+  }, 100);
+
+  return data;
+}
+
+export function exportVideo(store) {
+  const recordings = store.getByType('recording');
+  for (const rec of recordings) {
+    if (rec.blob) {
+      downloadBlob(rec.blob, `recording-${rec.id}.webm`);
+    }
+  }
+
+  const sessions = store.getByType('session');
+  for (const ses of sessions) {
+    if (ses.blob) {
+      downloadBlob(ses.blob, `session-${ses.sessionId || ses.id}.webm`);
+    }
+  }
+}
+
 function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -84,9 +121,52 @@ export function buildExportData(store, crossPageAnnotations = []) {
     exportedAt: new Date().toISOString(),
     pageUrl: window.location.href,
     pageTitle: document.title,
+    environment: collectEnvironment(),
     annotations: merged,
     summary: buildSummary(merged),
   };
+}
+
+function collectEnvironment() {
+  const nav = navigator;
+  const scr = screen;
+  const conn = nav.connection || nav.mozConnection || nav.webkitConnection;
+
+  const env = {
+    userAgent: nav.userAgent,
+    platform: nav.platform,
+    language: nav.language,
+    languages: nav.languages ? [...nav.languages] : [nav.language],
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    timezoneOffset: new Date().getTimezoneOffset(),
+    screen: {
+      width: scr.width,
+      height: scr.height,
+      devicePixelRatio: window.devicePixelRatio,
+      colorDepth: scr.colorDepth,
+      orientation: scr.orientation?.type || null,
+    },
+    viewport: {
+      width: window.innerWidth,
+      height: window.innerHeight,
+    },
+    deviceMemory: nav.deviceMemory || null,
+    hardwareConcurrency: nav.hardwareConcurrency || null,
+    touchSupport: nav.maxTouchPoints > 0,
+    cookiesEnabled: nav.cookieEnabled,
+    doNotTrack: nav.doNotTrack || null,
+  };
+
+  if (conn) {
+    env.connection = {
+      effectiveType: conn.effectiveType || null,
+      downlink: conn.downlink || null,
+      rtt: conn.rtt || null,
+      saveData: conn.saveData || false,
+    };
+  }
+
+  return env;
 }
 
 function cleanAnnotation(a) {

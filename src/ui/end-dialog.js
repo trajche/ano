@@ -35,7 +35,7 @@ export function createEndDialog(ctx) {
     });
     closeBtn.appendChild(svg('close'));
     dialog.appendChild(el('div', { className: 'ano-end-header' },
-      el('h2', {}, 'Session Complete'),
+      el('h2', {}, 'Report Ready'),
       closeBtn,
     ));
 
@@ -143,17 +143,28 @@ export function createEndDialog(ctx) {
       origHide();
     };
 
-    const exportBtn = el('button', {
+    const exportJsonBtn = el('button', {
       className: 'primary',
       onClick: () => {
-        ctx.events.emit('export');
+        ctx.events.emit('export:json');
         dismiss();
       },
     }, 'Export JSON');
 
     actions.appendChild(dismissBtn);
     actions.appendChild(linkBtn);
-    actions.appendChild(exportBtn);
+
+    if (summary.hasRecording) {
+      const exportVideoBtn = el('button', {
+        onClick: () => {
+          ctx.events.emit('export:video');
+          dismiss();
+        },
+      }, 'Export Video');
+      actions.appendChild(exportVideoBtn);
+    }
+
+    actions.appendChild(exportJsonBtn);
     dialog.appendChild(actions);
     dialog.appendChild(linkResult);
 
