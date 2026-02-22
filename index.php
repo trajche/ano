@@ -234,11 +234,22 @@
         <span class="text-sm text-zinc-400">Drag this to your bookmarks bar</span>
       </div>
 
+      <label class="block text-sm font-medium text-zinc-700 mb-2">Or copy the bookmarklet code</label>
+      <div class="flex gap-2 mb-6">
+        <input
+          id="bm-code"
+          type="text"
+          readonly
+          class="flex-1 px-4 py-2.5 border border-zinc-300 rounded-lg font-mono text-xs bg-zinc-50 text-zinc-600 focus:outline-none focus:ring-2 focus:ring-accent-500/30 focus:border-accent-500"
+        >
+        <button onclick="copyBookmarklet()" id="bm-copy-btn" class="px-4 py-2.5 bg-accent-500 hover:bg-accent-600 text-white text-sm font-medium rounded-lg transition-colors whitespace-nowrap">Copy</button>
+      </div>
+
       <div class="bg-zinc-50 border border-zinc-200 rounded-lg p-5">
         <h4 class="font-medium mb-3">How to use</h4>
         <ol class="list-decimal list-inside text-sm text-zinc-600 space-y-2">
           <li>Optionally change the URL above if you self-host <code class="bg-zinc-200 px-1.5 py-0.5 rounded text-xs">ano.min.js</code></li>
-          <li>Drag the <strong>Ano</strong> button to your bookmarks bar</li>
+          <li>Drag the <strong>Ano</strong> button to your bookmarks bar, or copy the code and paste it as a new bookmark URL</li>
           <li>Visit any page and click the bookmarklet to start annotating</li>
           <li>Click it again to remove Ano from the page</li>
         </ol>
@@ -305,18 +316,30 @@
     (function () {
       var urlInput = document.getElementById('bm-url');
       var link = document.getElementById('bm-link');
+      var codeInput = document.getElementById('bm-code');
 
       function buildBookmarklet(url) {
         return "javascript:void((function(){if(window.Ano){Ano.destroy();return}var s=document.createElement('script');s.src='" + encodeURI(url) + "';s.onload=function(){Ano.init({mode:'navigate'})};document.head.appendChild(s)})())";
       }
 
       function update() {
-        link.href = buildBookmarklet(urlInput.value.trim());
+        var bm = buildBookmarklet(urlInput.value.trim());
+        link.href = bm;
+        codeInput.value = bm;
       }
 
       urlInput.addEventListener('input', update);
       update();
     })();
+
+    function copyBookmarklet() {
+      var codeInput = document.getElementById('bm-code');
+      var btn = document.getElementById('bm-copy-btn');
+      navigator.clipboard.writeText(codeInput.value).then(function () {
+        btn.textContent = 'Copied!';
+        setTimeout(function () { btn.textContent = 'Copy'; }, 2000);
+      });
+    }
 
     // Copy snippet buttons
     function copySnippet(btn) {
