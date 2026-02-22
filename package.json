@@ -1,0 +1,15 @@
+{
+  "name": "ano",
+  "version": "1.0.0",
+  "description": "Web page annotation library — highlights, pins, and freehand drawing",
+  "main": "dist/ano.js",
+  "scripts": {
+    "build": "node esbuild.config.mjs",
+    "dev": "node esbuild.config.mjs --watch"
+  },
+  "devDependencies": {
+    "esbuild": "^0.21.0"
+  },
+  "license": "MIT",
+  "private": true
+}
