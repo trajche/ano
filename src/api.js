@@ -174,6 +174,7 @@ function clearInstance() {
   }
 
   store.clear();
+  drawingManager.redrawAll();
   clearStoredAnnotations();
 }
 

@@ -3519,6 +3519,7 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
       else if (ann.type === "recording" && ctx.recordingManager) ctx.recordingManager.removeRecording(ann.id);
     }
     store.clear();
+    drawingManager.redrawAll();
     clearStoredAnnotations();
   }
   function destroyInstance() {
