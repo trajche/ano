@@ -566,6 +566,22 @@ function wireEvents(ctx) {
       e.stopPropagation();
       const rect = mark.getBoundingClientRect();
       popover.show(mark.dataset.anoId, rect);
+      return;
+    }
+
+    // Click on drawing strokes → show popover
+    if (ctx.mode === 'navigate') {
+      const drawing = drawingManager.hitTest(e.clientX, e.clientY);
+      if (drawing) {
+        e.stopPropagation();
+        const rect = {
+          x: e.clientX, y: e.clientY,
+          top: e.clientY, left: e.clientX,
+          bottom: e.clientY + 1, right: e.clientX + 1,
+          width: 1, height: 1,
+        };
+        popover.show(drawing.id, rect);
+      }
     }
   }
   document.addEventListener('click', onHighlightClick, true);

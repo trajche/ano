@@ -357,6 +357,58 @@ export function createDrawingManager(ctx) {
     }
   }
 
+  function hitTest(x, y) {
+    const drawings = store.getByType('drawing');
+    for (let i = drawings.length - 1; i >= 0; i--) {
+      const ann = drawings[i];
+      const box = getViewportBox(ann);
+      if (!box) continue;
+      // Pad the hit area so thin strokes are easier to click
+      const pad = 10;
+      if (x >= box.x - pad && x <= box.x + box.width + pad &&
+          y >= box.y - pad && y <= box.y + box.height + pad) {
+        return ann;
+      }
+    }
+    return null;
+  }
+
+  function getViewportBox(annotation) {
+    const { anchor, viewport, strokes } = annotation;
+    if (!strokes || strokes.length === 0) return null;
+
+    let anchorRect = null;
+    if (anchor) {
+      try {
+        const el = document.querySelector(anchor.selector);
+        if (el) anchorRect = el.getBoundingClientRect();
+      } catch { /* invalid selector */ }
+    }
+
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const stroke of strokes) {
+      for (const pt of stroke.points) {
+        let vx, vy;
+        if (anchorRect) {
+          vx = pt.x * anchorRect.width + anchorRect.x;
+          vy = pt.y * anchorRect.height + anchorRect.y;
+        } else {
+          const scrollDx = viewport ? window.scrollX - viewport.scrollX : 0;
+          const scrollDy = viewport ? window.scrollY - viewport.scrollY : 0;
+          vx = pt.x - scrollDx;
+          vy = pt.y - scrollDy;
+        }
+        if (vx < minX) minX = vx;
+        if (vy < minY) minY = vy;
+        if (vx > maxX) maxX = vx;
+        if (vy > maxY) maxY = vy;
+      }
+    }
+
+    if (!isFinite(minX)) return null;
+    return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+  }
+
   function destroy() {
     disable();
     removeAll();
@@ -379,6 +431,7 @@ export function createDrawingManager(ctx) {
     removeDrawing,
     removeAll,
     redrawAll,
+    hitTest,
     destroy,
   };
 }

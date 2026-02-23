@@ -1753,6 +1753,52 @@ var Ano = (() => {
         canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
       }
     }
+    function hitTest(x, y) {
+      const drawings = store.getByType("drawing");
+      for (let i = drawings.length - 1; i >= 0; i--) {
+        const ann = drawings[i];
+        const box = getViewportBox(ann);
+        if (!box) continue;
+        const pad2 = 10;
+        if (x >= box.x - pad2 && x <= box.x + box.width + pad2 && y >= box.y - pad2 && y <= box.y + box.height + pad2) {
+          return ann;
+        }
+      }
+      return null;
+    }
+    function getViewportBox(annotation) {
+      const { anchor, viewport, strokes } = annotation;
+      if (!strokes || strokes.length === 0) return null;
+      let anchorRect = null;
+      if (anchor) {
+        try {
+          const el2 = document.querySelector(anchor.selector);
+          if (el2) anchorRect = el2.getBoundingClientRect();
+        } catch {
+        }
+      }
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      for (const stroke of strokes) {
+        for (const pt of stroke.points) {
+          let vx, vy;
+          if (anchorRect) {
+            vx = pt.x * anchorRect.width + anchorRect.x;
+            vy = pt.y * anchorRect.height + anchorRect.y;
+          } else {
+            const scrollDx = viewport ? window.scrollX - viewport.scrollX : 0;
+            const scrollDy = viewport ? window.scrollY - viewport.scrollY : 0;
+            vx = pt.x - scrollDx;
+            vy = pt.y - scrollDy;
+          }
+          if (vx < minX) minX = vx;
+          if (vy < minY) minY = vy;
+          if (vx > maxX) maxX = vx;
+          if (vy > maxY) maxY = vy;
+        }
+      }
+      if (!isFinite(minX)) return null;
+      return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+    }
     function destroy3() {
       disable();
       removeAll();
@@ -1774,6 +1820,7 @@ var Ano = (() => {
       removeDrawing,
       removeAll,
       redrawAll,
+      hitTest,
       destroy: destroy3
     };
   }
@@ -3784,6 +3831,24 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
         e.stopPropagation();
         const rect = mark.getBoundingClientRect();
         popover.show(mark.dataset.anoId, rect);
+        return;
+      }
+      if (ctx.mode === "navigate") {
+        const drawing = drawingManager.hitTest(e.clientX, e.clientY);
+        if (drawing) {
+          e.stopPropagation();
+          const rect = {
+            x: e.clientX,
+            y: e.clientY,
+            top: e.clientY,
+            left: e.clientX,
+            bottom: e.clientY + 1,
+            right: e.clientX + 1,
+            width: 1,
+            height: 1
+          };
+          popover.show(drawing.id, rect);
+        }
       }
     }
     document.addEventListener("click", onHighlightClick, true);
