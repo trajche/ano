@@ -63,8 +63,8 @@ var Ano = (() => {
       off(event, fn) {
         listeners.get(event)?.delete(fn);
       },
-      emit(event, data) {
-        listeners.get(event)?.forEach((fn) => fn(data));
+      emit(event, ...args) {
+        listeners.get(event)?.forEach((fn) => fn(...args));
       },
       clear() {
         listeners.clear();
