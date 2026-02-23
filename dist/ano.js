@@ -2624,6 +2624,7 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
     let host = null;
     let shadow = null;
     let currentId = null;
+    let cleanupClickOutside = null;
     function init3() {
       if (host) return;
       host = document.createElement("div");
@@ -2678,6 +2679,16 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
       requestAnimationFrame(() => {
         positionPopover(popover, arrow, anchorRect);
         textarea.focus();
+        function onClickOutside(e) {
+          if (host && !host.shadowRoot.contains(e.target) && !host.contains(e.target)) {
+            store.update(annotationId, { comment: textarea.value });
+            hide();
+          }
+        }
+        document.addEventListener("click", onClickOutside, true);
+        cleanupClickOutside = () => {
+          document.removeEventListener("click", onClickOutside, true);
+        };
       });
       textarea.addEventListener("keydown", (e) => {
         if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
@@ -2685,6 +2696,7 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
           hide();
         }
         if (e.key === "Escape") {
+          store.update(annotationId, { comment: textarea.value });
           hide();
         }
         e.stopPropagation();
@@ -2710,6 +2722,10 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
       arrow.style.left = `${Math.max(12, Math.min(arrowLeft, popRect.width - 24))}px`;
     }
     function hide() {
+      if (cleanupClickOutside) {
+        cleanupClickOutside();
+        cleanupClickOutside = null;
+      }
       if (!shadow) return;
       const existing = shadow.querySelector(".ano-popover");
       if (existing) existing.remove();

@@ -7,6 +7,7 @@ export function createPopoverManager(ctx) {
   let host = null;
   let shadow = null;
   let currentId = null;
+  let cleanupClickOutside = null;
 
   function init() {
     if (host) return;
@@ -78,6 +79,18 @@ export function createPopoverManager(ctx) {
     requestAnimationFrame(() => {
       positionPopover(popover, arrow, anchorRect);
       textarea.focus();
+
+      // Click outside → save and close
+      function onClickOutside(e) {
+        if (host && !host.shadowRoot.contains(e.target) && !host.contains(e.target)) {
+          store.update(annotationId, { comment: textarea.value });
+          hide();
+        }
+      }
+      document.addEventListener('click', onClickOutside, true);
+      cleanupClickOutside = () => {
+        document.removeEventListener('click', onClickOutside, true);
+      };
     });
 
     // Handle keyboard
@@ -87,6 +100,7 @@ export function createPopoverManager(ctx) {
         hide();
       }
       if (e.key === 'Escape') {
+        store.update(annotationId, { comment: textarea.value });
         hide();
       }
       e.stopPropagation();
@@ -123,6 +137,10 @@ export function createPopoverManager(ctx) {
   }
 
   function hide() {
+    if (cleanupClickOutside) {
+      cleanupClickOutside();
+      cleanupClickOutside = null;
+    }
     if (!shadow) return;
     const existing = shadow.querySelector('.ano-popover');
     if (existing) existing.remove();
