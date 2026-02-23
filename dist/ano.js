@@ -3705,9 +3705,19 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
       }
     });
     events.on("drawing:created", (annotation, rawPoints) => {
+      ctx.setMode("navigate");
       if (rawPoints && rawPoints.length > 0) {
         const last = rawPoints[rawPoints.length - 1];
-        const rect = { x: last.x, y: last.y - 10, width: 1, height: 1 };
+        const rect = {
+          x: last.x,
+          y: last.y,
+          top: last.y,
+          left: last.x,
+          bottom: last.y + 1,
+          right: last.x + 1,
+          width: 1,
+          height: 1
+        };
         popover.show(annotation.id, rect);
       }
     });
