@@ -1568,10 +1568,10 @@ var Ano = (() => {
       }
       const centerX = (minX + maxX) / 2;
       const centerY = (minY + maxY) / 2;
-      const prev = host.style.pointerEvents;
-      host.style.pointerEvents = "none";
+      const prev = host.style.display;
+      host.style.display = "none";
       const el2 = document.elementFromPoint(centerX, centerY);
-      host.style.pointerEvents = prev;
+      host.style.display = prev;
       if (!el2 || el2 === document.documentElement) return null;
       const rect = el2.getBoundingClientRect();
       if (rect.width < 1 || rect.height < 1) return null;
@@ -1631,8 +1631,8 @@ var Ano = (() => {
         width: Math.round(maxX - minX),
         height: Math.round(maxY - minY)
       };
-      const prevPointerEvents = host.style.pointerEvents;
-      host.style.pointerEvents = "none";
+      const prevDisplay = host.style.display;
+      host.style.display = "none";
       const seen = /* @__PURE__ */ new Set();
       const elements = [];
       const sampleCount = Math.min(points.length, 20);
@@ -1654,7 +1654,7 @@ var Ano = (() => {
           ariaLabel: el2.getAttribute("aria-label") || void 0
         });
       }
-      host.style.pointerEvents = prevPointerEvents;
+      host.style.display = prevDisplay;
       const parts = elements.map((e) => {
         const tag = e.tagName.toLowerCase();
         const label = e.text ? `${tag}("${truncate3(e.text, 60)}")` : tag;

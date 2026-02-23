@@ -118,10 +118,10 @@ export function createDrawingManager(ctx) {
     const centerX = (minX + maxX) / 2;
     const centerY = (minY + maxY) / 2;
 
-    const prev = host.style.pointerEvents;
-    host.style.pointerEvents = 'none';
+    const prev = host.style.display;
+    host.style.display = 'none';
     const el = document.elementFromPoint(centerX, centerY);
-    host.style.pointerEvents = prev;
+    host.style.display = prev;
 
     if (!el || el === document.documentElement) return null;
 
@@ -196,8 +196,8 @@ export function createDrawingManager(ctx) {
 
     // Sample points along the stroke and hit-test for elements underneath
     // Temporarily hide our canvas overlay so elementFromPoint sees through it
-    const prevPointerEvents = host.style.pointerEvents;
-    host.style.pointerEvents = 'none';
+    const prevDisplay = host.style.display;
+    host.style.display = 'none';
 
     const seen = new Set();
     const elements = [];
@@ -224,7 +224,7 @@ export function createDrawingManager(ctx) {
       });
     }
 
-    host.style.pointerEvents = prevPointerEvents;
+    host.style.display = prevDisplay;
 
     // Build human/AI-readable description
     const parts = elements.map((e) => {
