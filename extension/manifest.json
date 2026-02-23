@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Ano — Web Annotations",
+  "name": "Ano — QA Bug Reporting",
   "version": "1.0.0",
-  "description": "Toggle Ano web annotations on any page. Highlights, pins, and freehand drawing.",
+  "description": "QA bug reporting on any page. Highlight, pin, draw, and record — export structured context for developers and AI.",
   "permissions": ["activeTab", "scripting"],
   "action": {
     "default_icon": {

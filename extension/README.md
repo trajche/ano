@@ -16,7 +16,7 @@ A Chrome extension that toggles [Ano](https://ano.phpless.digitalno.de) on any p
 
 ## How it works
 
-The extension injects `ano.min.js` from the CDN into the active tab and calls `Ano.init({ mode: 'navigate' })`. On subsequent clicks it detects `window.Ano` and calls `Ano.destroy()` to tear down — simple toggle behavior, same as the bookmarklet.
+The extension injects the bundled `ano.min.js` (included in the package — no remote code) into the active tab via `chrome.scripting.executeScript()` and calls `Ano.init({ mode: 'navigate' })`. On subsequent clicks it detects `window.Ano` and calls `Ano.destroy()` to tear down — simple toggle.
 
 ### Permissions
 
