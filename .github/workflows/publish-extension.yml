@@ -1,0 +1,49 @@
+name: Publish Chrome Extension
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install and build
+        run: npm ci && npm run build
+
+      - name: Sync extension bundle
+        run: cp dist/ano.min.js extension/ano.min.js
+
+      - name: Get version from tag
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+
+      - name: Update manifest version
+        run: |
+          cd extension
+          jq --arg v "${{ steps.version.outputs.version }}" '.version = $v' manifest.json > manifest.tmp && mv manifest.tmp manifest.json
+
+      - name: Build extension zip
+        run: |
+          cd extension
+          zip -r ../ano-extension-${{ steps.version.outputs.version }}.zip \
+            manifest.json \
+            background.js \
+            ano.min.js \
+            icons/ \
+            --exclude "*.DS_Store"
+
+      - name: Upload & publish to Chrome Web Store
+        run: npx chrome-webstore-upload-cli@3 upload --source ano-extension-${{ steps.version.outputs.version }}.zip --extension-id ndncffnjpgdmpiaegjndohfdnfgfeimf --auto-publish
+        env:
+          CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
+          REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
