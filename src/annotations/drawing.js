@@ -171,8 +171,10 @@ export function createDrawingManager(ctx) {
     });
 
     drawnAnnotations.add(annotation.id);
+    // Compute viewport rect from raw stroke points for popover positioning
+    const rawPoints = currentStroke ? currentStroke.points : [];
     currentStroke = null;
-    ctx.events.emit('drawing:created', annotation);
+    ctx.events.emit('drawing:created', annotation, rawPoints);
   }
 
   function captureStrokeContext(stroke) {

@@ -475,7 +475,13 @@ function wireEvents(ctx) {
     }
   });
 
-  events.on('drawing:created', () => {});
+  events.on('drawing:created', (annotation, rawPoints) => {
+    if (rawPoints && rawPoints.length > 0) {
+      const last = rawPoints[rawPoints.length - 1];
+      const rect = { x: last.x, y: last.y - 10, width: 1, height: 1 };
+      popover.show(annotation.id, rect);
+    }
+  });
 
   events.on('pin:click', (annotation) => {
     const el = document.querySelector(`[data-ano-id="${annotation.id}"]`);

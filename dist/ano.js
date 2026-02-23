@@ -1613,8 +1613,9 @@ var Ano = (() => {
         }
       });
       drawnAnnotations.add(annotation.id);
+      const rawPoints = currentStroke ? currentStroke.points : [];
       currentStroke = null;
-      ctx.events.emit("drawing:created", annotation);
+      ctx.events.emit("drawing:created", annotation, rawPoints);
     }
     function captureStrokeContext(stroke) {
       const points = stroke.points;
@@ -3703,7 +3704,12 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
         popover.show(annotation.id, rect);
       }
     });
-    events.on("drawing:created", () => {
+    events.on("drawing:created", (annotation, rawPoints) => {
+      if (rawPoints && rawPoints.length > 0) {
+        const last = rawPoints[rawPoints.length - 1];
+        const rect = { x: last.x, y: last.y - 10, width: 1, height: 1 };
+        popover.show(annotation.id, rect);
+      }
     });
     events.on("pin:click", (annotation) => {
       const el2 = document.querySelector(`[data-ano-id="${annotation.id}"]`);
