@@ -1,6 +1,6 @@
 # Ano Chrome Extension
 
-A Chrome extension that toggles [Ano](https://ano.phpless.digitalno.de) on any page — annotate bugs, export structured context that devs and LLMs can use to fix issues faster.
+A Chrome extension that toggles [Ano](https://ano.phpless.digitalno.de) on any page — testers report bugs visually, devs and AI get structured context to fix issues faster.
 
 ## Install
 

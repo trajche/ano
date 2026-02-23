@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Ano — Annotate, Export, Fix Faster</title>
+  <title>Ano — QA Bug Reporting for Developers &amp; AI</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -34,8 +34,8 @@
   <section class="py-24 px-6 text-center">
     <div class="max-w-3xl mx-auto">
       <h1 class="text-5xl font-bold tracking-tight mb-4">Ano</h1>
-      <p class="text-xl text-zinc-500 mb-4 max-w-xl mx-auto">Annotate any webpage. Export structured context that developers and LLMs can act on — fix bugs faster.</p>
-      <p class="text-sm text-zinc-400 mb-10 max-w-lg mx-auto">Highlights, pins, drawings, video recording, and sessions — all in a single zero-dependency script. The output is structured JSON designed to be pasted into a ticket or an LLM chat.</p>
+      <p class="text-xl text-zinc-500 mb-4 max-w-xl mx-auto">QA and testers report bugs visually — developers and AI get structured context to fix them fast.</p>
+      <p class="text-sm text-zinc-400 mb-10 max-w-lg mx-auto">Highlight broken text, pin problem elements, draw on the page, record video. Ano exports everything as structured JSON that you paste into a ticket, a Slack thread, or an AI chat. One script, zero dependencies.</p>
       <div class="flex gap-4 justify-center flex-wrap">
         <a href="#bookmarklet" class="inline-flex items-center px-6 py-3 bg-accent-500 hover:bg-accent-600 text-white font-medium rounded-lg transition-colors">Get Started</a>
         <a href="https://github.com/trajche/ano" target="_blank" class="inline-flex items-center px-6 py-3 bg-white border border-zinc-200 hover:border-zinc-300 text-zinc-700 font-medium rounded-lg transition-colors shadow-sm">GitHub</a>
@@ -46,8 +46,8 @@
   <!-- How to integrate -->
   <section class="py-16 px-6">
     <div class="max-w-3xl mx-auto">
-      <h2 class="text-2xl font-semibold text-center mb-3">Three Ways to Use Ano</h2>
-      <p class="text-center text-zinc-500 mb-12 max-w-lg mx-auto">Choose the integration that fits your workflow. All three produce the same structured JSON output.</p>
+      <h2 class="text-2xl font-semibold text-center mb-3">Set Up in Minutes</h2>
+      <p class="text-center text-zinc-500 mb-12 max-w-lg mx-auto">Give your QA team one of these — they report bugs visually, you get structured JSON with selectors, environment, and video.</p>
     </div>
   </section>
 
@@ -58,7 +58,7 @@
         <span class="flex items-center justify-center w-8 h-8 rounded-full bg-accent-500 text-white text-sm font-bold">1</span>
         <h2 class="text-2xl font-semibold">Bookmarklet</h2>
       </div>
-      <p class="text-zinc-500 mb-8">Use Ano on any website — no code changes needed. Drag the button to your bookmarks bar, or paste the code in your browser console.</p>
+      <p class="text-zinc-500 mb-8">No code changes needed. Give this to any tester — they drag it to their bookmarks bar or paste the code in the browser console.</p>
 
       <label class="block text-sm font-medium text-zinc-700 mb-2" for="bm-url">ano.min.js URL</label>
       <input
@@ -89,9 +89,9 @@
         <h4 class="font-medium mb-3">How it works</h4>
         <ol class="list-decimal list-inside text-sm text-zinc-600 space-y-2">
           <li>Drag the <strong>Ano</strong> button to your bookmarks bar, or copy the code above</li>
-          <li>Visit any page and click the bookmarklet (or paste the code in DevTools console)</li>
-          <li>Annotate the issue — highlight text, pin elements, draw, record video</li>
-          <li>Export JSON or get a shareable link to hand off to a developer or paste into an LLM</li>
+          <li>Visit the page with the bug and click the bookmarklet (or paste in DevTools console)</li>
+          <li>Report the issue — highlight broken text, pin elements, draw, record video</li>
+          <li>Hit <strong>Get Link</strong> or <strong>Export JSON</strong> and share with your developer or paste into AI</li>
           <li>Click the bookmarklet again to remove Ano from the page</li>
         </ol>
       </div>
@@ -105,7 +105,7 @@
         <span class="flex items-center justify-center w-8 h-8 rounded-full bg-accent-500 text-white text-sm font-bold">2</span>
         <h2 class="text-2xl font-semibold">Embed in Your Website</h2>
       </div>
-      <p class="text-zinc-500 mb-8">Add Ano to your site behind a secret URL parameter. Regular users never see it — QA, testers, or support can activate it by appending <code class="bg-zinc-200 px-1.5 py-0.5 rounded text-xs">?ano=1</code> to any page.</p>
+      <p class="text-zinc-500 mb-8">Ship Ano in your site behind a secret URL parameter. End users never see it — your QA team activates it by appending <code class="bg-zinc-200 px-1.5 py-0.5 rounded text-xs">?ano=1</code> to any page.</p>
 
       <h3 class="font-medium text-lg mb-3">Add this snippet to your layout</h3>
       <div class="relative mb-8" data-copy>
@@ -124,8 +124,8 @@ if (new URLSearchParams(location.search).has('ano')) {
         <h4 class="font-medium mb-3">How it works</h4>
         <ol class="list-decimal list-inside text-sm text-zinc-600 space-y-2">
           <li>The snippet checks for <code class="bg-zinc-200 px-1.5 py-0.5 rounded text-xs">?ano=1</code> in the URL — if absent, nothing loads</li>
-          <li>Share a link like <code class="bg-zinc-200 px-1.5 py-0.5 rounded text-xs">https://yoursite.com/page?ano=1</code> with your team</li>
-          <li>They annotate the issue and export or share the structured report</li>
+          <li>Share a link like <code class="bg-zinc-200 px-1.5 py-0.5 rounded text-xs">https://yoursite.com/page?ano=1</code> with your QA team</li>
+          <li>They report the bug visually and share the structured output with devs or AI</li>
           <li>Use a different param name for extra obscurity, e.g. <code class="bg-zinc-200 px-1.5 py-0.5 rounded text-xs">?debug</code> or <code class="bg-zinc-200 px-1.5 py-0.5 rounded text-xs">?feedback</code></li>
         </ol>
       </div>
@@ -258,7 +258,7 @@ if (new URLSearchParams(location.search).has('ano')) {
         <span class="flex items-center justify-center w-8 h-8 rounded-full bg-accent-500 text-white text-sm font-bold">3</span>
         <h2 class="text-2xl font-semibold">Chrome Extension</h2>
       </div>
-      <p class="text-zinc-500 mb-8">One-click toggle on any page. Click the icon to activate Ano, click again to remove it. Badge shows when active.</p>
+      <p class="text-zinc-500 mb-8">One click to start reporting. Testers click the icon to activate Ano on any tab, click again to remove it. Badge shows when active.</p>
 
       <div class="border border-zinc-200 rounded-lg shadow-sm bg-white p-6 mb-6">
         <div class="flex items-start gap-4">
@@ -267,7 +267,7 @@ if (new URLSearchParams(location.search).has('ano')) {
           </div>
           <div class="flex-1">
             <h3 class="font-semibold mb-1">Ano for Chrome</h3>
-            <p class="text-sm text-zinc-500 mb-4">Toggle annotations on any tab. No setup needed — works instantly on every page.</p>
+            <p class="text-sm text-zinc-500 mb-4">Toggle bug reporting on any tab. No setup needed — works instantly on every page.</p>
             <div class="flex gap-3 flex-wrap">
               <a href="https://github.com/trajche/ano/tree/main/extension" target="_blank" class="inline-flex items-center gap-2 px-4 py-2 bg-zinc-900 hover:bg-zinc-800 text-white text-sm font-medium rounded-lg transition-colors">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
@@ -294,8 +294,8 @@ if (new URLSearchParams(location.search).has('ano')) {
   <!-- Features -->
   <section class="py-16 px-6">
     <div class="max-w-5xl mx-auto">
-      <h2 class="text-2xl font-semibold text-center mb-3">What Gets Captured</h2>
-      <p class="text-center text-zinc-500 mb-12 max-w-lg mx-auto">Every annotation captures structured context — selectors, DOM info, viewport, environment — so a developer or LLM has everything needed to reproduce and fix the issue.</p>
+      <h2 class="text-2xl font-semibold text-center mb-3">What Testers Capture, What Devs Receive</h2>
+      <p class="text-center text-zinc-500 mb-12 max-w-lg mx-auto">Testers point at the problem. Ano captures the structured context — selectors, DOM info, viewport, environment — so a developer or AI has everything needed to reproduce and fix it.</p>
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         <div class="border border-zinc-200 rounded-lg shadow-sm bg-white p-6">
           <h3 class="font-semibold mb-1">Highlights</h3>
@@ -375,7 +375,7 @@ if (new URLSearchParams(location.search).has('ano')) {
   <!-- Footer -->
   <footer class="py-10 px-6">
     <div class="max-w-3xl mx-auto text-center text-sm text-zinc-400">
-      Ano — annotate, export, fix faster
+      Ano — QA reports bugs, devs and AI fix them faster
     </div>
   </footer>
 

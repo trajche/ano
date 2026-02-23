@@ -51,11 +51,11 @@
   </style>
 </head>
 <body>
-  <h1>Ano — Annotate, Export, Fix Faster</h1>
+  <h1>Ano — QA Bug Reporting Tool</h1>
 
   <div class="info-box">
-    <strong>Test this page:</strong> Highlight text, pin elements, or draw on the page to capture exactly what's wrong.
-    Export the result as structured JSON — paste it into a ticket or an LLM chat so devs can fix it fast.
+    <strong>Test this page:</strong> Pretend something is broken — highlight text, pin elements, or draw on the page.
+    Then export or share. Developers and AI get structured JSON with selectors, environment, and context.
     <br><br>
     <strong>Keyboard shortcuts:</strong>
     <code>Alt+A</code> toggle sidebar,
@@ -90,23 +90,23 @@
   <div class="card-grid">
     <div class="card">
       <h3>Text Highlights</h3>
-      <p>Select the exact text that's wrong. The export includes the quote, selectors, and page context.</p>
+      <p>Select the broken text. Devs get the quote, selectors, and page context in the export.</p>
     </div>
     <div class="card">
       <h3>Element Pins</h3>
-      <p>Pin any element with a note. Captures the CSS selector and DOM context so an LLM or dev can find it.</p>
+      <p>Pin the problem element with a note. Captures the CSS selector so a dev or AI can locate it.</p>
     </div>
     <div class="card">
       <h3>Freehand Drawing</h3>
-      <p>Circle problem areas or draw arrows. Stroke data is included in the export for visual reference.</p>
+      <p>Circle the issue or draw arrows. Stroke data is included in the export for visual reference.</p>
     </div>
     <div class="card">
       <h3>Screen Recording</h3>
-      <p>Record a video of the issue across pages. <a href="test2.html">Try Page 2</a> while recording.</p>
+      <p>Record the bug as a video across pages. <a href="test2.html">Try Page 2</a> while recording.</p>
     </div>
     <div class="card">
       <h3>Export &amp; Share</h3>
-      <p>Export structured JSON or share a link. Paste the output into a ticket or LLM to get a fix fast.</p>
+      <p>Export structured JSON or get a shareable link. Paste it into a ticket, Slack, or AI chat.</p>
     </div>
   </div>
 
@@ -136,7 +136,7 @@
   </p>
 
   <footer>
-    <p>This is a test page for the Ano annotation library. &copy; 2026</p>
+    <p>This is a test page for Ano. &copy; 2026</p>
   </footer>
 
   <script src="dist/ano.js"></script>

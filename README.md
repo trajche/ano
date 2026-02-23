@@ -1,6 +1,6 @@
 # Ano
 
-Annotate any webpage, export structured context that LLMs and developers can act on — fix bugs faster. Highlights, pins, drawings, video, sessions, and JSON export in a single zero-dependency script (~66 KB).
+QA bug reporting tool for the browser. Testers highlight, pin, draw, and record — Ano exports structured context that developers and AI can act on to fix issues faster. Single script, zero dependencies (~66 KB).
 
 ## Quick Start
 
@@ -13,13 +13,13 @@ Annotate any webpage, export structured context that LLMs and developers can act
 
 ## Features
 
-- **Highlights** — Select text to highlight the exact content that's wrong
-- **Pins** — Click any element to pin it with a note — captures the selector and DOM context
-- **Freehand Drawing** — Circle areas, draw arrows, or mark up the page visually
-- **Sessions** — Record a timed session with actions, page navigations, and optional video
-- **Export / Import** — Export structured JSON that developers or LLMs can use to reproduce and fix issues
-- **Share** — Upload annotations (and video) to a link — paste it into a ticket or an LLM chat
-- **Zero Dependencies** — No frameworks, no build steps required
+- **Highlights** — Testers select the broken text. Devs get the quote, selectors, and surrounding context.
+- **Pins** — Click any element to pin it with a note. Captures the CSS selector and DOM metadata.
+- **Freehand Drawing** — Circle problem areas or draw arrows directly on the page.
+- **Sessions** — Record a timed session with clicks, page navigations, console errors, and optional video.
+- **Export / Share** — Export structured JSON or get a shareable link. Paste into a ticket, Slack, or AI chat.
+- **Environment** — Browser, OS, screen size, viewport, timezone, connection speed — captured automatically.
+- **Zero Dependencies** — No frameworks, no build steps. One script tag and your QA team is ready.
 
 ## Options
 
