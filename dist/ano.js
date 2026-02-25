@@ -3406,6 +3406,7 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
       console.warn("[Ano] Already initialized. Call Ano.destroy() first.");
       return instance.api;
     }
+    const isChildFrame = window !== window.top;
     const config = createConfig(options);
     const store = createStore();
     const events = createEventBus();
@@ -3435,31 +3436,60 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
       ctx.recordingManager = createRecordingManager(ctx);
     }
     ctx.sessionManager = createSessionManager(ctx);
-    ctx.toolbar = createToolbar(ctx);
+    const nullToolbar = {
+      render: () => {
+      },
+      renderIdle: () => {
+      },
+      renderActive: () => {
+      },
+      setActive: () => {
+      },
+      updateCount: () => {
+      },
+      getVideoToggleState: () => false,
+      destroy: () => {
+      }
+    };
+    const nullDialog = { show: () => {
+    }, destroy: () => {
+    } };
+    ctx.toolbar = isChildFrame ? nullToolbar : createToolbar(ctx);
     ctx.popover = createPopoverManager(ctx);
-    ctx.endDialog = createEndDialog(ctx);
+    ctx.endDialog = isChildFrame ? nullDialog : createEndDialog(ctx);
     ctx.shortcutManager = createShortcutManager(ctx);
     ctx.setMode = (mode) => {
-      if (ctx.sessionState !== "active" && mode !== "navigate") return;
+      if (!isChildFrame && ctx.sessionState !== "active" && mode !== "navigate") return;
       disableMode(ctx, ctx.mode);
       ctx.mode = mode;
       enableMode(ctx, mode);
-      ctx.toolbar.setActive(mode);
+      if (!isChildFrame) {
+        ctx.toolbar.setActive(mode);
+        for (const iframe of document.querySelectorAll("iframe")) {
+          try {
+            iframe.contentWindow?.postMessage({ source: "ano-parent", type: "mode:set", payload: mode }, "*");
+          } catch {
+          }
+        }
+      }
     };
     wireEvents(ctx);
     injectHostStyles();
     ctx.drawingManager.init();
     ctx.toolbar.render();
     ctx.popover.init();
-    if (config.shortcuts) {
+    if (config.shortcuts && !isChildFrame) {
       ctx.shortcutManager.enable();
     }
-    restoreStore(ctx);
     let persistTimer = null;
-    const unsubPersist = store.on("change", () => {
-      if (persistTimer) clearTimeout(persistTimer);
-      persistTimer = setTimeout(() => persistStore(store), 500);
-    });
+    let unsubPersist = null;
+    if (!isChildFrame) {
+      restoreStore(ctx);
+      unsubPersist = store.on("change", () => {
+        if (persistTimer) clearTimeout(persistTimer);
+        persistTimer = setTimeout(() => persistStore(store), 500);
+      });
+    }
     store.on("add", (annotation) => {
       if (ctx.sessionState === "active" && ctx.currentSessionId && annotation.type !== "session" && !annotation.sessionId) {
         store.update(annotation.id, { sessionId: ctx.currentSessionId });
@@ -3481,6 +3511,38 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
       }
     });
     observer.observe(document.body, { childList: true, subtree: true });
+    if (isChildFrame) {
+      let onParentMessage = function(e) {
+        if (!e.data || e.data.source !== "ano-parent") return;
+        if (e.data.type === "mode:set") ctx.setMode(e.data.payload);
+        else if (e.data.type === "destroy") destroyInstance();
+      };
+      store.on("add", (a) => window.parent.postMessage(
+        { source: "ano-frame", type: "annotation:add", payload: cleanForStorage(a), frameUrl: location.href },
+        "*"
+      ));
+      store.on("update", (a) => window.parent.postMessage(
+        { source: "ano-frame", type: "annotation:update", payload: cleanForStorage(a), frameUrl: location.href },
+        "*"
+      ));
+      store.on("remove", (id) => window.parent.postMessage(
+        { source: "ano-frame", type: "annotation:remove", payload: id, frameUrl: location.href },
+        "*"
+      ));
+      window.addEventListener("message", onParentMessage);
+      ctx._cleanupChildMessage = () => window.removeEventListener("message", onParentMessage);
+    }
+    if (!isChildFrame) {
+      let onFrameMessage = function(e) {
+        if (!e.data || e.data.source !== "ano-frame") return;
+        const { type, payload, frameUrl } = e.data;
+        if (type === "annotation:add") store.add({ ...payload, frameUrl });
+        else if (type === "annotation:update") store.update(payload.id, { ...payload, frameUrl });
+        else if (type === "annotation:remove") store.remove(payload);
+      };
+      window.addEventListener("message", onFrameMessage);
+      ctx._cleanupFrameMessage = () => window.removeEventListener("message", onFrameMessage);
+    }
     const api = {
       getAll: () => store.getAll(),
       toJSON: () => buildExportData(store, getCrossPageAnnotations()),
@@ -3500,7 +3562,8 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
       repositionHandler,
       observer,
       unsubPersist,
-      persistTimer
+      persistTimer,
+      isChildFrame
     };
     return api;
   }
@@ -3524,7 +3587,7 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
   }
   function destroyInstance() {
     if (!instance) return;
-    const { ctx, repositionHandler, observer, unsubPersist, persistTimer } = instance;
+    const { ctx, repositionHandler, observer, unsubPersist, persistTimer, isChildFrame } = instance;
     if (unsubPersist) unsubPersist();
     if (persistTimer) clearTimeout(persistTimer);
     observer.disconnect();
@@ -3540,7 +3603,9 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
     if (ctx.recordingManager) ctx.recordingManager.destroy();
     ctx.sessionManager.destroy();
     if (ctx._cleanupHighlightClick) ctx._cleanupHighlightClick();
-    persistStore(ctx.store);
+    if (ctx._cleanupFrameMessage) ctx._cleanupFrameMessage();
+    if (ctx._cleanupChildMessage) ctx._cleanupChildMessage();
+    if (!isChildFrame) persistStore(ctx.store);
     ctx.store.clear();
     ctx.store.destroy();
     ctx.events.clear();
@@ -3793,6 +3858,7 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
       }
     });
     events.on("annotation:focus", (annotation) => {
+      if (annotation.frameUrl) return;
       if (annotation.type === "highlight") {
         const marks = highlightManager.getMarksForAnnotation(annotation.id);
         if (marks.length > 0) {

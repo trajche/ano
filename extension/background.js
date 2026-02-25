@@ -1,5 +1,5 @@
 chrome.action.onClicked.addListener(async (tab) => {
-  // Check if Ano is active by looking for its DOM elements
+  // Check if Ano is active by looking for its DOM elements (top frame only)
   const [check] = await chrome.scripting.executeScript({
     target: { tabId: tab.id },
     world: 'MAIN',
@@ -8,26 +8,25 @@ chrome.action.onClicked.addListener(async (tab) => {
 
   if (check.result) {
     await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
+      target: { tabId: tab.id, allFrames: true },
       world: 'MAIN',
-      func: () => Ano.destroy(),
+      func: () => { if (typeof window.Ano !== 'undefined') window.Ano.destroy(); },
     });
 
     chrome.action.setBadgeText({ tabId: tab.id, text: '' });
     return;
   }
 
-  // Inject bundled script if not already loaded
-  if (!(await isScriptLoaded(tab.id))) {
-    await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      world: 'MAIN',
-      files: ['ano.min.js'],
-    });
-  }
-
+  // Inject into ALL frames (cross-origin included — extension privilege)
   await chrome.scripting.executeScript({
-    target: { tabId: tab.id },
+    target: { tabId: tab.id, allFrames: true },
+    world: 'MAIN',
+    files: ['ano.min.js'],
+  });
+
+  // Init in ALL frames — each frame auto-detects child vs parent
+  await chrome.scripting.executeScript({
+    target: { tabId: tab.id, allFrames: true },
     world: 'MAIN',
     func: () => Ano.init({ mode: 'navigate' }),
   });
@@ -35,12 +34,3 @@ chrome.action.onClicked.addListener(async (tab) => {
   chrome.action.setBadgeText({ tabId: tab.id, text: 'ON' });
   chrome.action.setBadgeBackgroundColor({ tabId: tab.id, color: '#6366f1' });
 });
-
-async function isScriptLoaded(tabId) {
-  const [result] = await chrome.scripting.executeScript({
-    target: { tabId },
-    world: 'MAIN',
-    func: () => typeof window.Ano !== 'undefined',
-  });
-  return result.result;
-}

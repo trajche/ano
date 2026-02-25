@@ -25,6 +25,8 @@ export function init(options = {}) {
     return instance.api;
   }
 
+  const isChildFrame = window !== window.top;
+
   const config = createConfig(options);
   const store = createStore();
   const events = createEventBus();
@@ -57,19 +59,34 @@ export function init(options = {}) {
   }
   ctx.sessionManager = createSessionManager(ctx);
 
+  // Null stubs for UI components not needed in child frames
+  const nullToolbar = {
+    render: () => {}, renderIdle: () => {}, renderActive: () => {},
+    setActive: () => {}, updateCount: () => {}, getVideoToggleState: () => false,
+    destroy: () => {},
+  };
+  const nullDialog = { show: () => {}, destroy: () => {} };
+
   // Create UI
-  ctx.toolbar = createToolbar(ctx);
+  ctx.toolbar = isChildFrame ? nullToolbar : createToolbar(ctx);
   ctx.popover = createPopoverManager(ctx);
-  ctx.endDialog = createEndDialog(ctx);
+  ctx.endDialog = isChildFrame ? nullDialog : createEndDialog(ctx);
   ctx.shortcutManager = createShortcutManager(ctx);
 
   // Mode switching — guarded by session state
   ctx.setMode = (mode) => {
-    if (ctx.sessionState !== 'active' && mode !== 'navigate') return;
+    if (!isChildFrame && ctx.sessionState !== 'active' && mode !== 'navigate') return;
     disableMode(ctx, ctx.mode);
     ctx.mode = mode;
     enableMode(ctx, mode);
-    ctx.toolbar.setActive(mode);
+    if (!isChildFrame) {
+      ctx.toolbar.setActive(mode);
+      // Broadcast to child frames
+      for (const iframe of document.querySelectorAll('iframe')) {
+        try { iframe.contentWindow?.postMessage({ source: 'ano-parent', type: 'mode:set', payload: mode }, '*'); }
+        catch { /* cross-origin ok */ }
+      }
+    }
   };
 
   // Wire events
@@ -85,20 +102,21 @@ export function init(options = {}) {
   ctx.toolbar.render();
   ctx.popover.init();
 
-  // Enable shortcuts
-  if (config.shortcuts) {
+  // Enable shortcuts (skip in child frames)
+  if (config.shortcuts && !isChildFrame) {
     ctx.shortcutManager.enable();
   }
 
-  // Restore saved annotations from localStorage (before initial mode)
-  restoreStore(ctx);
-
-  // Auto-persist store changes to localStorage (debounced)
+  // Restore saved annotations and set up persistence (skip in child frames)
   let persistTimer = null;
-  const unsubPersist = store.on('change', () => {
-    if (persistTimer) clearTimeout(persistTimer);
-    persistTimer = setTimeout(() => persistStore(store), 500);
-  });
+  let unsubPersist = null;
+  if (!isChildFrame) {
+    restoreStore(ctx);
+    unsubPersist = store.on('change', () => {
+      if (persistTimer) clearTimeout(persistTimer);
+      persistTimer = setTimeout(() => persistStore(store), 500);
+    });
+  }
 
   // Tag annotations with sessionId when added during active session
   store.on('add', (annotation) => {
@@ -130,6 +148,37 @@ export function init(options = {}) {
   });
   observer.observe(document.body, { childList: true, subtree: true });
 
+  // Child-frame postMessage bridge — forward annotations to parent, listen for commands
+  if (isChildFrame) {
+    store.on('add', (a) => window.parent.postMessage(
+      { source: 'ano-frame', type: 'annotation:add', payload: cleanForStorage(a), frameUrl: location.href }, '*'));
+    store.on('update', (a) => window.parent.postMessage(
+      { source: 'ano-frame', type: 'annotation:update', payload: cleanForStorage(a), frameUrl: location.href }, '*'));
+    store.on('remove', (id) => window.parent.postMessage(
+      { source: 'ano-frame', type: 'annotation:remove', payload: id, frameUrl: location.href }, '*'));
+
+    function onParentMessage(e) {
+      if (!e.data || e.data.source !== 'ano-parent') return;
+      if (e.data.type === 'mode:set') ctx.setMode(e.data.payload);
+      else if (e.data.type === 'destroy') destroyInstance();
+    }
+    window.addEventListener('message', onParentMessage);
+    ctx._cleanupChildMessage = () => window.removeEventListener('message', onParentMessage);
+  }
+
+  // Parent-frame listener — receive annotations from child frames
+  if (!isChildFrame) {
+    function onFrameMessage(e) {
+      if (!e.data || e.data.source !== 'ano-frame') return;
+      const { type, payload, frameUrl } = e.data;
+      if (type === 'annotation:add') store.add({ ...payload, frameUrl });
+      else if (type === 'annotation:update') store.update(payload.id, { ...payload, frameUrl });
+      else if (type === 'annotation:remove') store.remove(payload);
+    }
+    window.addEventListener('message', onFrameMessage);
+    ctx._cleanupFrameMessage = () => window.removeEventListener('message', onFrameMessage);
+  }
+
   const api = {
     getAll: () => store.getAll(),
     toJSON: () => buildExportData(store, getCrossPageAnnotations()),
@@ -151,6 +200,7 @@ export function init(options = {}) {
     observer,
     unsubPersist,
     persistTimer,
+    isChildFrame,
   };
 
   return api;
@@ -180,7 +230,7 @@ function clearInstance() {
 
 function destroyInstance() {
   if (!instance) return;
-  const { ctx, repositionHandler, observer, unsubPersist, persistTimer } = instance;
+  const { ctx, repositionHandler, observer, unsubPersist, persistTimer, isChildFrame } = instance;
 
   if (unsubPersist) unsubPersist();
   if (persistTimer) clearTimeout(persistTimer);
@@ -199,7 +249,9 @@ function destroyInstance() {
   if (ctx.recordingManager) ctx.recordingManager.destroy();
   ctx.sessionManager.destroy();
   if (ctx._cleanupHighlightClick) ctx._cleanupHighlightClick();
-  persistStore(ctx.store);
+  if (ctx._cleanupFrameMessage) ctx._cleanupFrameMessage();
+  if (ctx._cleanupChildMessage) ctx._cleanupChildMessage();
+  if (!isChildFrame) persistStore(ctx.store);
   ctx.store.clear();
   ctx.store.destroy();
   ctx.events.clear();
@@ -499,6 +551,7 @@ function wireEvents(ctx) {
   });
 
   events.on('annotation:focus', (annotation) => {
+    if (annotation.frameUrl) return; // can't scroll to annotations in another frame
     if (annotation.type === 'highlight') {
       const marks = highlightManager.getMarksForAnnotation(annotation.id);
       if (marks.length > 0) {
