@@ -11,6 +11,7 @@ export function createDrawingManager(ctx) {
   let isDrawing = false;
   let currentStroke = null;
   const drawnAnnotations = new Set();
+  const markerElements = new Map(); // annotationId → floating badge div
 
   function init() {
     if (host) return;
@@ -171,6 +172,7 @@ export function createDrawingManager(ctx) {
     });
 
     drawnAnnotations.add(annotation.id);
+    createMarker(annotation);
     // Compute viewport rect from raw stroke points for popover positioning
     const rawPoints = currentStroke ? currentStroke.points : [];
     currentStroke = null;
@@ -293,9 +295,6 @@ export function createDrawingManager(ctx) {
       } catch { /* invalid selector */ }
     }
 
-    let minX = Infinity;
-    let minY = Infinity;
-
     for (const stroke of annotation.strokes) {
       if (stroke.points.length < 2) continue;
 
@@ -323,13 +322,6 @@ export function createDrawingManager(ctx) {
             pt.y * anchorRect.height + anchorRect.y
           );
         }
-
-        for (const pt of stroke.points) {
-          const vx = pt.x * anchorRect.width + anchorRect.x;
-          const vy = pt.y * anchorRect.height + anchorRect.y;
-          if (vx < minX) minX = vx;
-          if (vy < minY) minY = vy;
-        }
       } else {
         // Legacy fallback: scroll-delta compensation
         const scrollDx = viewport ? window.scrollX - viewport.scrollX : 0;
@@ -343,50 +335,64 @@ export function createDrawingManager(ctx) {
           const pt = stroke.points[i];
           canvasCtx.lineTo(pt.x - scrollDx, pt.y - scrollDy);
         }
-
-        for (const pt of stroke.points) {
-          const vx = pt.x - scrollDx;
-          const vy = pt.y - scrollDy;
-          if (vx < minX) minX = vx;
-          if (vy < minY) minY = vy;
-        }
       }
 
       canvasCtx.stroke();
     }
+  }
 
-    // Draw index badge at top-left of bounding box
-    if (annotation.index != null && isFinite(minX)) {
-      const r = 9;
-      const bx = minX;
-      const by = minY;
-      canvasCtx.save();
-      canvasCtx.beginPath();
-      canvasCtx.arc(bx, by, r, 0, Math.PI * 2);
-      canvasCtx.fillStyle = 'rgba(0,0,0,0.6)';
-      canvasCtx.fill();
-      canvasCtx.fillStyle = '#fff';
-      canvasCtx.font = 'bold 10px -apple-system, BlinkMacSystemFont, sans-serif';
-      canvasCtx.textAlign = 'center';
-      canvasCtx.textBaseline = 'middle';
-      canvasCtx.fillText(String(annotation.index), bx, by);
-      canvasCtx.restore();
+  function createMarker(annotation) {
+    if (annotation.index == null || markerElements.has(annotation.id)) return;
+    const box = getViewportBox(annotation);
+    if (!box) return;
+    const marker = document.createElement('div');
+    marker.className = 'ano-drawing-marker';
+    marker.dataset.ano = '';
+    marker.dataset.anoId = annotation.id;
+    marker.textContent = annotation.index;
+    marker.style.setProperty('--ano-pin-color', config.pinColor);
+    document.body.appendChild(marker);
+    positionDrawingMarker(marker, box);
+    markerElements.set(annotation.id, marker);
+    marker.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const rect = marker.getBoundingClientRect();
+      ctx.popover.show(annotation.id, rect);
+    });
+  }
+
+  function positionDrawingMarker(marker, box) {
+    marker.style.left = `${box.x + window.scrollX - 12}px`;
+    marker.style.top = `${box.y + window.scrollY - 12}px`;
+  }
+
+  function repositionAll() {
+    for (const [id, marker] of markerElements) {
+      const annotation = store.get(id);
+      if (!annotation) continue;
+      const box = getViewportBox(annotation);
+      if (box) positionDrawingMarker(marker, box);
     }
   }
 
   function applyDrawing(annotation) {
     drawnAnnotations.add(annotation.id);
     redrawAll();
+    createMarker(annotation);
     return true;
   }
 
   function removeDrawing(id) {
     drawnAnnotations.delete(id);
+    const marker = markerElements.get(id);
+    if (marker) { marker.remove(); markerElements.delete(id); }
     redrawAll();
   }
 
   function removeAll() {
     drawnAnnotations.clear();
+    for (const [, marker] of markerElements) marker.remove();
+    markerElements.clear();
     if (canvasCtx) {
       canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
     }
@@ -465,6 +471,7 @@ export function createDrawingManager(ctx) {
     applyDrawing,
     removeDrawing,
     removeAll,
+    repositionAll,
     redrawAll,
     hitTest,
     destroy,

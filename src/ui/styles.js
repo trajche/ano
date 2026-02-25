@@ -567,25 +567,6 @@ export const highlightCSS = `
   .ano-highlight:hover {
     filter: brightness(0.9);
   }
-  .ano-highlight[data-ano-index]::before {
-    content: attr(data-ano-index);
-    display: inline-block;
-    min-width: 14px;
-    height: 14px;
-    border-radius: 7px;
-    background: rgba(0,0,0,0.6);
-    color: #fff;
-    font-size: 9px;
-    font-weight: 700;
-    padding: 0 3px;
-    margin-right: 2px;
-    text-align: center;
-    line-height: 14px;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    font-style: normal;
-    box-sizing: border-box;
-    vertical-align: middle;
-  }
 `;
 
 export const pinCSS = `
@@ -610,6 +591,29 @@ export const pinCSS = `
     user-select: none;
   }
   .ano-pin-marker:hover {
+    transform: scale(1.2);
+  }
+  .ano-highlight-marker, .ano-drawing-marker {
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--ano-pin-color, #3b82f6);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 2147483644;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    transition: transform 0.15s;
+    pointer-events: auto;
+    user-select: none;
+  }
+  .ano-highlight-marker:hover, .ano-drawing-marker:hover {
     transform: scale(1.2);
   }
   .ano-pin-overlay {

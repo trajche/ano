@@ -129,7 +129,11 @@ export function init(options = {}) {
   // Do NOT enable initial mode — toolbar starts idle, no tools active
 
   // Setup scroll/resize handlers for pins
-  const repositionHandler = () => ctx.pinManager.repositionAll();
+  const repositionHandler = () => {
+    ctx.pinManager.repositionAll();
+    ctx.highlightManager.repositionAll();
+    ctx.drawingManager.repositionAll();
+  };
   window.addEventListener('scroll', repositionHandler, { passive: true });
   window.addEventListener('resize', repositionHandler, { passive: true });
 

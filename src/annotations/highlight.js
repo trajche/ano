@@ -7,6 +7,7 @@ export function createHighlightManager(ctx) {
   const { store, config } = ctx;
   let active = false;
   const markElements = new Map(); // annotationId → [mark elements]
+  const markerElements = new Map(); // annotationId → floating badge div
 
   function enable() {
     if (active) return;
@@ -55,10 +56,8 @@ export function createHighlightManager(ctx) {
 
     // Store mark element references
     markElements.set(annotation.id, marks);
-    marks.forEach((mark, i) => {
-      mark.dataset.anoId = annotation.id;
-      if (i === 0 && annotation.index != null) mark.dataset.anoIndex = annotation.index;
-    });
+    marks.forEach((mark) => { mark.dataset.anoId = annotation.id; });
+    if (annotation.index != null) createMarker(annotation, marks[0]);
 
     selection.removeAllRanges();
 
@@ -142,15 +141,47 @@ export function createHighlightManager(ctx) {
     if (marks.length === 0) return false;
 
     markElements.set(annotation.id, marks);
-    marks.forEach((mark, i) => {
+    marks.forEach((mark) => {
       mark.dataset.anoId = annotation.id;
-      if (i === 0 && annotation.index != null) mark.dataset.anoIndex = annotation.index;
       if (annotation.color) {
         mark.style.setProperty('--ano-hl-color', annotation.color);
       }
     });
+    if (annotation.index != null) createMarker(annotation, marks[0]);
 
     return true;
+  }
+
+  function createMarker(annotation, firstMark) {
+    const marker = document.createElement('div');
+    marker.className = 'ano-highlight-marker';
+    marker.dataset.ano = '';
+    marker.dataset.anoId = annotation.id;
+    marker.textContent = annotation.index;
+    marker.style.setProperty('--ano-pin-color', config.pinColor);
+    document.body.appendChild(marker);
+    positionMarker(marker, firstMark);
+    markerElements.set(annotation.id, marker);
+    marker.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const rect = marker.getBoundingClientRect();
+      ctx.popover.show(annotation.id, rect);
+    });
+  }
+
+  function positionMarker(marker, target) {
+    const rect = target.getBoundingClientRect();
+    marker.style.left = `${rect.left + window.scrollX - 12}px`;
+    marker.style.top = `${rect.top + window.scrollY - 12}px`;
+  }
+
+  function repositionAll() {
+    for (const [id, marker] of markerElements) {
+      const marks = markElements.get(id);
+      if (marks && marks.length > 0 && document.body.contains(marks[0])) {
+        positionMarker(marker, marks[0]);
+      }
+    }
   }
 
   function removeHighlight(id) {
@@ -168,6 +199,9 @@ export function createHighlightManager(ctx) {
     }
 
     markElements.delete(id);
+
+    const marker = markerElements.get(id);
+    if (marker) { marker.remove(); markerElements.delete(id); }
   }
 
   function removeAll() {
@@ -277,6 +311,7 @@ export function createHighlightManager(ctx) {
     applyHighlight,
     removeHighlight,
     removeAll,
+    repositionAll,
     getMarksForAnnotation,
     destroy,
   };

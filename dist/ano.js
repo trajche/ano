@@ -388,6 +388,7 @@ var Ano = (() => {
     const { store, config } = ctx;
     let active = false;
     const markElements = /* @__PURE__ */ new Map();
+    const markerElements = /* @__PURE__ */ new Map();
     function enable() {
       if (active) return;
       active = true;
@@ -420,10 +421,10 @@ var Ano = (() => {
         color: config.highlightColor
       });
       markElements.set(annotation.id, marks);
-      marks.forEach((mark, i) => {
+      marks.forEach((mark) => {
         mark.dataset.anoId = annotation.id;
-        if (i === 0 && annotation.index != null) mark.dataset.anoIndex = annotation.index;
       });
+      if (annotation.index != null) createMarker(annotation, marks[0]);
       selection.removeAllRanges();
       ctx.events.emit("highlight:created", annotation);
     }
@@ -482,14 +483,43 @@ var Ano = (() => {
       const marks = wrapRange(range);
       if (marks.length === 0) return false;
       markElements.set(annotation.id, marks);
-      marks.forEach((mark, i) => {
+      marks.forEach((mark) => {
         mark.dataset.anoId = annotation.id;
-        if (i === 0 && annotation.index != null) mark.dataset.anoIndex = annotation.index;
         if (annotation.color) {
           mark.style.setProperty("--ano-hl-color", annotation.color);
         }
       });
+      if (annotation.index != null) createMarker(annotation, marks[0]);
       return true;
+    }
+    function createMarker(annotation, firstMark) {
+      const marker = document.createElement("div");
+      marker.className = "ano-highlight-marker";
+      marker.dataset.ano = "";
+      marker.dataset.anoId = annotation.id;
+      marker.textContent = annotation.index;
+      marker.style.setProperty("--ano-pin-color", config.pinColor);
+      document.body.appendChild(marker);
+      positionMarker(marker, firstMark);
+      markerElements.set(annotation.id, marker);
+      marker.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const rect = marker.getBoundingClientRect();
+        ctx.popover.show(annotation.id, rect);
+      });
+    }
+    function positionMarker(marker, target) {
+      const rect = target.getBoundingClientRect();
+      marker.style.left = `${rect.left + window.scrollX - 12}px`;
+      marker.style.top = `${rect.top + window.scrollY - 12}px`;
+    }
+    function repositionAll() {
+      for (const [id, marker] of markerElements) {
+        const marks = markElements.get(id);
+        if (marks && marks.length > 0 && document.body.contains(marks[0])) {
+          positionMarker(marker, marks[0]);
+        }
+      }
     }
     function removeHighlight(id) {
       const marks = markElements.get(id);
@@ -504,6 +534,11 @@ var Ano = (() => {
         parent.normalize();
       }
       markElements.delete(id);
+      const marker = markerElements.get(id);
+      if (marker) {
+        marker.remove();
+        markerElements.delete(id);
+      }
     }
     function removeAll() {
       for (const id of [...markElements.keys()]) {
@@ -612,6 +647,7 @@ var Ano = (() => {
       applyHighlight,
       removeHighlight,
       removeAll,
+      repositionAll,
       getMarksForAnnotation,
       destroy: destroy3
     };
@@ -1250,25 +1286,6 @@ var Ano = (() => {
   .ano-highlight:hover {
     filter: brightness(0.9);
   }
-  .ano-highlight[data-ano-index]::before {
-    content: attr(data-ano-index);
-    display: inline-block;
-    min-width: 14px;
-    height: 14px;
-    border-radius: 7px;
-    background: rgba(0,0,0,0.6);
-    color: #fff;
-    font-size: 9px;
-    font-weight: 700;
-    padding: 0 3px;
-    margin-right: 2px;
-    text-align: center;
-    line-height: 14px;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    font-style: normal;
-    box-sizing: border-box;
-    vertical-align: middle;
-  }
 `;
   var pinCSS = `
   .ano-pin-marker {
@@ -1292,6 +1309,29 @@ var Ano = (() => {
     user-select: none;
   }
   .ano-pin-marker:hover {
+    transform: scale(1.2);
+  }
+  .ano-highlight-marker, .ano-drawing-marker {
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--ano-pin-color, #3b82f6);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 2147483644;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    transition: transform 0.15s;
+    pointer-events: auto;
+    user-select: none;
+  }
+  .ano-highlight-marker:hover, .ano-drawing-marker:hover {
     transform: scale(1.2);
   }
   .ano-pin-overlay {
@@ -1577,6 +1617,7 @@ var Ano = (() => {
     let isDrawing = false;
     let currentStroke = null;
     const drawnAnnotations = /* @__PURE__ */ new Set();
+    const markerElements = /* @__PURE__ */ new Map();
     function init3() {
       if (host) return;
       host = document.createElement("div");
@@ -1711,6 +1752,7 @@ var Ano = (() => {
         }
       });
       drawnAnnotations.add(annotation.id);
+      createMarker(annotation);
       const rawPoints = currentStroke ? currentStroke.points : [];
       currentStroke = null;
       ctx.events.emit("drawing:created", annotation, rawPoints);
@@ -1800,8 +1842,6 @@ var Ano = (() => {
         } catch {
         }
       }
-      let minX = Infinity;
-      let minY = Infinity;
       for (const stroke of annotation.strokes) {
         if (stroke.points.length < 2) continue;
         canvasCtx.beginPath();
@@ -1824,12 +1864,6 @@ var Ano = (() => {
               pt.y * anchorRect.height + anchorRect.y
             );
           }
-          for (const pt of stroke.points) {
-            const vx = pt.x * anchorRect.width + anchorRect.x;
-            const vy = pt.y * anchorRect.height + anchorRect.y;
-            if (vx < minX) minX = vx;
-            if (vy < minY) minY = vy;
-          }
         } else {
           const scrollDx = viewport ? window.scrollX - viewport.scrollX : 0;
           const scrollDy = viewport ? window.scrollY - viewport.scrollY : 0;
@@ -1840,43 +1874,60 @@ var Ano = (() => {
             const pt = stroke.points[i];
             canvasCtx.lineTo(pt.x - scrollDx, pt.y - scrollDy);
           }
-          for (const pt of stroke.points) {
-            const vx = pt.x - scrollDx;
-            const vy = pt.y - scrollDy;
-            if (vx < minX) minX = vx;
-            if (vy < minY) minY = vy;
-          }
         }
         canvasCtx.stroke();
       }
-      if (annotation.index != null && isFinite(minX)) {
-        const r = 9;
-        const bx = minX;
-        const by = minY;
-        canvasCtx.save();
-        canvasCtx.beginPath();
-        canvasCtx.arc(bx, by, r, 0, Math.PI * 2);
-        canvasCtx.fillStyle = "rgba(0,0,0,0.6)";
-        canvasCtx.fill();
-        canvasCtx.fillStyle = "#fff";
-        canvasCtx.font = "bold 10px -apple-system, BlinkMacSystemFont, sans-serif";
-        canvasCtx.textAlign = "center";
-        canvasCtx.textBaseline = "middle";
-        canvasCtx.fillText(String(annotation.index), bx, by);
-        canvasCtx.restore();
+    }
+    function createMarker(annotation) {
+      if (annotation.index == null || markerElements.has(annotation.id)) return;
+      const box = getViewportBox(annotation);
+      if (!box) return;
+      const marker = document.createElement("div");
+      marker.className = "ano-drawing-marker";
+      marker.dataset.ano = "";
+      marker.dataset.anoId = annotation.id;
+      marker.textContent = annotation.index;
+      marker.style.setProperty("--ano-pin-color", config.pinColor);
+      document.body.appendChild(marker);
+      positionDrawingMarker(marker, box);
+      markerElements.set(annotation.id, marker);
+      marker.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const rect = marker.getBoundingClientRect();
+        ctx.popover.show(annotation.id, rect);
+      });
+    }
+    function positionDrawingMarker(marker, box) {
+      marker.style.left = `${box.x + window.scrollX - 12}px`;
+      marker.style.top = `${box.y + window.scrollY - 12}px`;
+    }
+    function repositionAll() {
+      for (const [id, marker] of markerElements) {
+        const annotation = store.get(id);
+        if (!annotation) continue;
+        const box = getViewportBox(annotation);
+        if (box) positionDrawingMarker(marker, box);
       }
     }
     function applyDrawing(annotation) {
       drawnAnnotations.add(annotation.id);
       redrawAll();
+      createMarker(annotation);
       return true;
     }
     function removeDrawing(id) {
       drawnAnnotations.delete(id);
+      const marker = markerElements.get(id);
+      if (marker) {
+        marker.remove();
+        markerElements.delete(id);
+      }
       redrawAll();
     }
     function removeAll() {
       drawnAnnotations.clear();
+      for (const [, marker] of markerElements) marker.remove();
+      markerElements.clear();
       if (canvasCtx) {
         canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
       }
@@ -1947,6 +1998,7 @@ var Ano = (() => {
       applyDrawing,
       removeDrawing,
       removeAll,
+      repositionAll,
       redrawAll,
       hitTest,
       destroy: destroy3
@@ -3624,7 +3676,11 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
         store.update(annotation.id, { sessionId: ctx.currentSessionId });
       }
     });
-    const repositionHandler = () => ctx.pinManager.repositionAll();
+    const repositionHandler = () => {
+      ctx.pinManager.repositionAll();
+      ctx.highlightManager.repositionAll();
+      ctx.drawingManager.repositionAll();
+    };
     window.addEventListener("scroll", repositionHandler, { passive: true });
     window.addEventListener("resize", repositionHandler, { passive: true });
     const observer = new MutationObserver((mutations) => {
