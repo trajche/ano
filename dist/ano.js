@@ -3647,7 +3647,15 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
         else if (e.data.type === "pin:hover") ctx.pinManager.hoverAt(e.data.x, e.data.y);
         else if (e.data.type === "pin:hover:clear") ctx.pinManager.clearHover();
         else if (e.data.type === "pin:click") ctx.pinManager.clickAt(e.data.x, e.data.y);
-        else if (e.data.type === "destroy") destroyInstance();
+        else if (e.data.type === "session:start") {
+          ctx.sessionState = "active";
+          ctx.currentSessionId = e.data.sessionId;
+        } else if (e.data.type === "session:end") ctx.sessionState = "ending";
+        else if (e.data.type === "session:clear") {
+          clearInstance();
+          ctx.sessionState = "idle";
+          ctx.currentSessionId = null;
+        } else if (e.data.type === "destroy") destroyInstance();
       };
       store.on("add", (a) => window.parent.postMessage(
         { source: "ano-frame", type: "annotation:add", payload: cleanForStorage(a), frameUrl: location.href },
@@ -3657,8 +3665,8 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
         { source: "ano-frame", type: "annotation:update", payload: cleanForStorage(a), frameUrl: location.href },
         "*"
       ));
-      store.on("remove", (id) => window.parent.postMessage(
-        { source: "ano-frame", type: "annotation:remove", payload: id, frameUrl: location.href },
+      store.on("remove", (ann) => window.parent.postMessage(
+        { source: "ano-frame", type: "annotation:remove", payload: ann.id, frameUrl: location.href },
         "*"
       ));
       window.addEventListener("message", onParentMessage);
@@ -3704,7 +3712,15 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
   }
   function clearInstance() {
     if (!instance) return;
-    const { ctx } = instance;
+    const { ctx, isChildFrame } = instance;
+    if (!isChildFrame) {
+      for (const iframe of document.querySelectorAll("iframe")) {
+        try {
+          iframe.contentWindow?.postMessage({ source: "ano-parent", type: "session:clear" }, "*");
+        } catch {
+        }
+      }
+    }
     const { store, highlightManager, pinManager, drawingManager, sessionManager } = ctx;
     for (const ann of store.getAll()) {
       if (ann.type === "highlight") highlightManager.removeHighlight(ann.id);
@@ -3874,6 +3890,12 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
       }
       ctx.toolbar.renderActive(ctx.sessionManager.getStartTime());
       ctx.setMode("navigate");
+      for (const iframe of document.querySelectorAll("iframe")) {
+        try {
+          iframe.contentWindow?.postMessage({ source: "ano-parent", type: "session:start", sessionId }, "*");
+        } catch {
+        }
+      }
     });
     events.on("session:end", async () => {
       if (ctx.sessionState !== "active") return;
@@ -3886,6 +3908,12 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
       ctx.setMode("navigate");
       ctx.sessionState = "ending";
       ctx.toolbar.renderIdle();
+      for (const iframe of document.querySelectorAll("iframe")) {
+        try {
+          iframe.contentWindow?.postMessage({ source: "ano-parent", type: "session:end" }, "*");
+        } catch {
+        }
+      }
       let blob = null;
       let blobUrl = null;
       if (wasRecording) {

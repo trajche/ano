@@ -154,8 +154,8 @@ export function init(options = {}) {
       { source: 'ano-frame', type: 'annotation:add', payload: cleanForStorage(a), frameUrl: location.href }, '*'));
     store.on('update', (a) => window.parent.postMessage(
       { source: 'ano-frame', type: 'annotation:update', payload: cleanForStorage(a), frameUrl: location.href }, '*'));
-    store.on('remove', (id) => window.parent.postMessage(
-      { source: 'ano-frame', type: 'annotation:remove', payload: id, frameUrl: location.href }, '*'));
+    store.on('remove', (ann) => window.parent.postMessage(
+      { source: 'ano-frame', type: 'annotation:remove', payload: ann.id, frameUrl: location.href }, '*'));
 
     function onParentMessage(e) {
       if (!e.data || e.data.source !== 'ano-parent') return;
@@ -163,6 +163,9 @@ export function init(options = {}) {
       else if (e.data.type === 'pin:hover') ctx.pinManager.hoverAt(e.data.x, e.data.y);
       else if (e.data.type === 'pin:hover:clear') ctx.pinManager.clearHover();
       else if (e.data.type === 'pin:click') ctx.pinManager.clickAt(e.data.x, e.data.y);
+      else if (e.data.type === 'session:start') { ctx.sessionState = 'active'; ctx.currentSessionId = e.data.sessionId; }
+      else if (e.data.type === 'session:end') ctx.sessionState = 'ending';
+      else if (e.data.type === 'session:clear') { clearInstance(); ctx.sessionState = 'idle'; ctx.currentSessionId = null; }
       else if (e.data.type === 'destroy') destroyInstance();
     }
     window.addEventListener('message', onParentMessage);
@@ -215,7 +218,16 @@ export function destroy() {
 
 function clearInstance() {
   if (!instance) return;
-  const { ctx } = instance;
+  const { ctx, isChildFrame } = instance;
+
+  // Tell child frames to clear their local annotations
+  if (!isChildFrame) {
+    for (const iframe of document.querySelectorAll('iframe')) {
+      try { iframe.contentWindow?.postMessage({ source: 'ano-parent', type: 'session:clear' }, '*'); }
+      catch {}
+    }
+  }
+
   const { store, highlightManager, pinManager, drawingManager, sessionManager } = ctx;
 
   for (const ann of store.getAll()) {
@@ -408,6 +420,12 @@ function wireEvents(ctx) {
 
     ctx.toolbar.renderActive(ctx.sessionManager.getStartTime());
     ctx.setMode('navigate');
+
+    // Broadcast session start to child frames so they track sessionState correctly
+    for (const iframe of document.querySelectorAll('iframe')) {
+      try { iframe.contentWindow?.postMessage({ source: 'ano-parent', type: 'session:start', sessionId }, '*'); }
+      catch {}
+    }
   });
 
   events.on('session:end', async () => {
@@ -424,10 +442,15 @@ function wireEvents(ctx) {
       ctx.recordingManager.stopRecording();
     }
 
-    // Disable current annotation mode and broadcast navigate to child frames
+    // Disable current annotation mode and broadcast navigate + session:end to child frames
     ctx.setMode('navigate');
     ctx.sessionState = 'ending';
     ctx.toolbar.renderIdle();
+
+    for (const iframe of document.querySelectorAll('iframe')) {
+      try { iframe.contentWindow?.postMessage({ source: 'ano-parent', type: 'session:end' }, '*'); }
+      catch {}
+    }
 
     // Wait for recording blob if was recording
     let blob = null;
