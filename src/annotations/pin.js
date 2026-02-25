@@ -180,7 +180,10 @@ export function createPinManager(ctx) {
   // Called in child frames when parent forwards a hover position
   function hoverAt(x, y) {
     if (!active || !hoverOutline) return;
+    // Temporarily hide overlay so elementFromPoint sees the content beneath
+    if (overlay) overlay.style.pointerEvents = 'none';
     const target = document.elementFromPoint(x, y);
+    if (overlay) overlay.style.pointerEvents = 'auto';
     if (target && target !== document.body && target !== document.documentElement && !isAnoElement(target)) {
       const rect = target.getBoundingClientRect();
       hoverOutline.style.display = 'block';
@@ -196,7 +199,9 @@ export function createPinManager(ctx) {
   // Called in child frames when parent forwards a click position
   function clickAt(x, y) {
     if (!active) return;
+    if (overlay) overlay.style.pointerEvents = 'none';
     const target = document.elementFromPoint(x, y);
+    if (overlay) overlay.style.pointerEvents = 'auto';
     if (!target || target === document.body || target === document.documentElement || isAnoElement(target)) return;
 
     const targetSelector = generateCSSSelector(target);

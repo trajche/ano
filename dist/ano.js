@@ -776,7 +776,9 @@ var Ano = (() => {
     }
     function hoverAt(x, y) {
       if (!active || !hoverOutline) return;
+      if (overlay) overlay.style.pointerEvents = "none";
       const target = document.elementFromPoint(x, y);
+      if (overlay) overlay.style.pointerEvents = "auto";
       if (target && target !== document.body && target !== document.documentElement && !isAnoElement2(target)) {
         const rect = target.getBoundingClientRect();
         hoverOutline.style.display = "block";
@@ -790,7 +792,9 @@ var Ano = (() => {
     }
     function clickAt(x, y) {
       if (!active) return;
+      if (overlay) overlay.style.pointerEvents = "none";
       const target = document.elementFromPoint(x, y);
+      if (overlay) overlay.style.pointerEvents = "auto";
       if (!target || target === document.body || target === document.documentElement || isAnoElement2(target)) return;
       const targetSelector = generateCSSSelector(target);
       const targetMeta = getTargetMeta(target);
