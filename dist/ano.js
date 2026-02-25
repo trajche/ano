@@ -1800,8 +1800,8 @@ var Ano = (() => {
         } catch {
         }
       }
-      let firstPtX = null;
-      let firstPtY = null;
+      let minX = Infinity;
+      let minY = Infinity;
       for (const stroke of annotation.strokes) {
         if (stroke.points.length < 2) continue;
         canvasCtx.beginPath();
@@ -1813,13 +1813,10 @@ var Ano = (() => {
           const scaleH = anchorRect.height / anchor.rect.height;
           canvasCtx.lineWidth = stroke.width * Math.min(scaleW, scaleH);
           const first = stroke.points[0];
-          const fx = first.x * anchorRect.width + anchorRect.x;
-          const fy = first.y * anchorRect.height + anchorRect.y;
-          if (firstPtX === null) {
-            firstPtX = fx;
-            firstPtY = fy;
-          }
-          canvasCtx.moveTo(fx, fy);
+          canvasCtx.moveTo(
+            first.x * anchorRect.width + anchorRect.x,
+            first.y * anchorRect.height + anchorRect.y
+          );
           for (let i = 1; i < stroke.points.length; i++) {
             const pt = stroke.points[i];
             canvasCtx.lineTo(
@@ -1827,37 +1824,45 @@ var Ano = (() => {
               pt.y * anchorRect.height + anchorRect.y
             );
           }
+          for (const pt of stroke.points) {
+            const vx = pt.x * anchorRect.width + anchorRect.x;
+            const vy = pt.y * anchorRect.height + anchorRect.y;
+            if (vx < minX) minX = vx;
+            if (vy < minY) minY = vy;
+          }
         } else {
           const scrollDx = viewport ? window.scrollX - viewport.scrollX : 0;
           const scrollDy = viewport ? window.scrollY - viewport.scrollY : 0;
           canvasCtx.lineWidth = stroke.width;
           const first = stroke.points[0];
-          const fx = first.x - scrollDx;
-          const fy = first.y - scrollDy;
-          if (firstPtX === null) {
-            firstPtX = fx;
-            firstPtY = fy;
-          }
-          canvasCtx.moveTo(fx, fy);
+          canvasCtx.moveTo(first.x - scrollDx, first.y - scrollDy);
           for (let i = 1; i < stroke.points.length; i++) {
             const pt = stroke.points[i];
             canvasCtx.lineTo(pt.x - scrollDx, pt.y - scrollDy);
           }
+          for (const pt of stroke.points) {
+            const vx = pt.x - scrollDx;
+            const vy = pt.y - scrollDy;
+            if (vx < minX) minX = vx;
+            if (vy < minY) minY = vy;
+          }
         }
         canvasCtx.stroke();
       }
-      if (annotation.index != null && firstPtX !== null) {
+      if (annotation.index != null && isFinite(minX)) {
         const r = 9;
+        const bx = minX;
+        const by = minY;
         canvasCtx.save();
         canvasCtx.beginPath();
-        canvasCtx.arc(firstPtX, firstPtY, r, 0, Math.PI * 2);
+        canvasCtx.arc(bx, by, r, 0, Math.PI * 2);
         canvasCtx.fillStyle = "rgba(0,0,0,0.6)";
         canvasCtx.fill();
         canvasCtx.fillStyle = "#fff";
         canvasCtx.font = "bold 10px -apple-system, BlinkMacSystemFont, sans-serif";
         canvasCtx.textAlign = "center";
         canvasCtx.textBaseline = "middle";
-        canvasCtx.fillText(String(annotation.index), firstPtX, firstPtY);
+        canvasCtx.fillText(String(annotation.index), bx, by);
         canvasCtx.restore();
       }
     }
