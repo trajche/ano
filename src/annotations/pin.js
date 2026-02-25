@@ -6,6 +6,7 @@ export function createPinManager(ctx) {
   const pinElements = new Map(); // annotationId → { marker, target }
   let hoverOutline = null;
   let overlay = null;
+  let lastHoveredIframe = null;
 
   function enable() {
     if (active) return;
@@ -63,7 +64,14 @@ export function createPinManager(ctx) {
         }, '*');
       } catch {}
       hoverOutline.style.display = 'none';
+      lastHoveredIframe = target;
       return;
+    }
+
+    // Cursor moved off an iframe — clear its hover outline
+    if (lastHoveredIframe) {
+      try { lastHoveredIframe.contentWindow?.postMessage({ source: 'ano-parent', type: 'pin:hover:clear' }, '*'); } catch {}
+      lastHoveredIframe = null;
     }
 
     if (target && target !== document.body && target !== document.documentElement && !isAnoElement(target)) {
@@ -91,7 +99,8 @@ export function createPinManager(ctx) {
     overlay.style.pointerEvents = 'auto';
 
     if (target && target.tagName === 'IFRAME') {
-      // Forward click into child frame
+      // Forward click into child frame and immediately leave pin mode so
+      // the overlay is removed before the child's popover needs interaction
       const rect = target.getBoundingClientRect();
       try {
         target.contentWindow?.postMessage({
@@ -99,6 +108,7 @@ export function createPinManager(ctx) {
           x: e.clientX - rect.left, y: e.clientY - rect.top,
         }, '*');
       } catch {}
+      ctx.setMode('navigate');
       return;
     }
 
@@ -212,6 +222,11 @@ export function createPinManager(ctx) {
     ctx.events.emit('pin:created', annotation);
   }
 
+  // Called in child frames to clear hover outline when cursor leaves the iframe
+  function clearHover() {
+    if (hoverOutline) hoverOutline.style.display = 'none';
+  }
+
   function scrollToPin(id) {
     const entry = pinElements.get(id);
     if (!entry) return;
@@ -320,6 +335,7 @@ export function createPinManager(ctx) {
     scrollToPin,
     hoverAt,
     clickAt,
+    clearHover,
     destroy,
   };
 }

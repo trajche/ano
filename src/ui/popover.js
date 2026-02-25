@@ -25,6 +25,7 @@ export function createPopoverManager(ctx) {
 
   function show(annotationId, anchorRect) {
     init();
+    if (currentId === annotationId) return; // already showing for this annotation
     hide();
     currentId = annotationId;
 

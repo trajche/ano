@@ -55,8 +55,9 @@ export function createHighlightManager(ctx) {
 
     // Store mark element references
     markElements.set(annotation.id, marks);
-    marks.forEach((mark) => {
+    marks.forEach((mark, i) => {
       mark.dataset.anoId = annotation.id;
+      if (i === 0 && annotation.index != null) mark.dataset.anoIndex = annotation.index;
     });
 
     selection.removeAllRanges();
@@ -141,8 +142,9 @@ export function createHighlightManager(ctx) {
     if (marks.length === 0) return false;
 
     markElements.set(annotation.id, marks);
-    marks.forEach((mark) => {
+    marks.forEach((mark, i) => {
       mark.dataset.anoId = annotation.id;
+      if (i === 0 && annotation.index != null) mark.dataset.anoIndex = annotation.index;
       if (annotation.color) {
         mark.style.setProperty('--ano-hl-color', annotation.color);
       }

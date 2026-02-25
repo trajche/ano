@@ -567,6 +567,25 @@ export const highlightCSS = `
   .ano-highlight:hover {
     filter: brightness(0.9);
   }
+  .ano-highlight[data-ano-index]::before {
+    content: attr(data-ano-index);
+    display: inline-block;
+    min-width: 14px;
+    height: 14px;
+    border-radius: 7px;
+    background: rgba(0,0,0,0.6);
+    color: #fff;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 0 3px;
+    margin-right: 2px;
+    text-align: center;
+    line-height: 14px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-style: normal;
+    box-sizing: border-box;
+    vertical-align: middle;
+  }
 `;
 
 export const pinCSS = `

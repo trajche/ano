@@ -88,7 +88,8 @@ var Ano = (() => {
   function createStore() {
     const annotations = /* @__PURE__ */ new Map();
     const bus = createEventBus();
-    let pinCounter = 0;
+    let annotationCounter = 0;
+    const COUNTED_TYPES = /* @__PURE__ */ new Set(["highlight", "pin", "drawing"]);
     function add(data) {
       const id = data.id || nanoid();
       const annotation = {
@@ -96,9 +97,13 @@ var Ano = (() => {
         id,
         createdAt: data.createdAt || Date.now()
       };
-      if (annotation.type === "pin" && annotation.index == null) {
-        pinCounter++;
-        annotation.index = pinCounter;
+      if (COUNTED_TYPES.has(annotation.type)) {
+        if (annotation.index == null) {
+          annotationCounter++;
+          annotation.index = annotationCounter;
+        } else if (annotation.index > annotationCounter) {
+          annotationCounter = annotation.index;
+        }
       }
       annotations.set(id, annotation);
       bus.emit("add", annotation);
@@ -134,13 +139,13 @@ var Ano = (() => {
     function clear2() {
       const all = getAll2();
       annotations.clear();
-      pinCounter = 0;
+      annotationCounter = 0;
       bus.emit("clear", all);
       bus.emit("change", { type: "clear", annotations: all });
     }
-    function resetPinCounter() {
-      const pins = getByType("pin");
-      pinCounter = pins.length > 0 ? Math.max(...pins.map((p) => p.index)) : 0;
+    function resetCounter() {
+      const counted = getAll2().filter((a) => COUNTED_TYPES.has(a.type) && a.index != null);
+      annotationCounter = counted.length > 0 ? Math.max(...counted.map((a) => a.index)) : 0;
     }
     return {
       add,
@@ -150,7 +155,7 @@ var Ano = (() => {
       getAll: getAll2,
       getByType,
       clear: clear2,
-      resetPinCounter,
+      resetCounter,
       on: bus.on,
       off: bus.off,
       emit: bus.emit,
@@ -415,8 +420,9 @@ var Ano = (() => {
         color: config.highlightColor
       });
       markElements.set(annotation.id, marks);
-      marks.forEach((mark) => {
+      marks.forEach((mark, i) => {
         mark.dataset.anoId = annotation.id;
+        if (i === 0 && annotation.index != null) mark.dataset.anoIndex = annotation.index;
       });
       selection.removeAllRanges();
       ctx.events.emit("highlight:created", annotation);
@@ -476,8 +482,9 @@ var Ano = (() => {
       const marks = wrapRange(range);
       if (marks.length === 0) return false;
       markElements.set(annotation.id, marks);
-      marks.forEach((mark) => {
+      marks.forEach((mark, i) => {
         mark.dataset.anoId = annotation.id;
+        if (i === 0 && annotation.index != null) mark.dataset.anoIndex = annotation.index;
         if (annotation.color) {
           mark.style.setProperty("--ano-hl-color", annotation.color);
         }
@@ -628,6 +635,7 @@ var Ano = (() => {
     const pinElements = /* @__PURE__ */ new Map();
     let hoverOutline = null;
     let overlay = null;
+    let lastHoveredIframe = null;
     function enable() {
       if (active) return;
       active = true;
@@ -679,7 +687,15 @@ var Ano = (() => {
         } catch {
         }
         hoverOutline.style.display = "none";
+        lastHoveredIframe = target;
         return;
+      }
+      if (lastHoveredIframe) {
+        try {
+          lastHoveredIframe.contentWindow?.postMessage({ source: "ano-parent", type: "pin:hover:clear" }, "*");
+        } catch {
+        }
+        lastHoveredIframe = null;
       }
       if (target && target !== document.body && target !== document.documentElement && !isAnoElement2(target)) {
         const rect = target.getBoundingClientRect();
@@ -711,6 +727,7 @@ var Ano = (() => {
           }, "*");
         } catch {
         }
+        ctx.setMode("navigate");
         return;
       }
       if (!target || target === document.body || target === document.documentElement || isAnoElement2(target)) {
@@ -802,6 +819,9 @@ var Ano = (() => {
       const annotation = store.add({ type: "pin", comment: "", targetSelector, targetMeta, context });
       createPinMarker(annotation, target);
       ctx.events.emit("pin:created", annotation);
+    }
+    function clearHover() {
+      if (hoverOutline) hoverOutline.style.display = "none";
     }
     function scrollToPin(id) {
       const entry = pinElements.get(id);
@@ -905,6 +925,7 @@ var Ano = (() => {
       scrollToPin,
       hoverAt,
       clickAt,
+      clearHover,
       destroy: destroy3
     };
   }
@@ -1228,6 +1249,25 @@ var Ano = (() => {
   }
   .ano-highlight:hover {
     filter: brightness(0.9);
+  }
+  .ano-highlight[data-ano-index]::before {
+    content: attr(data-ano-index);
+    display: inline-block;
+    min-width: 14px;
+    height: 14px;
+    border-radius: 7px;
+    background: rgba(0,0,0,0.6);
+    color: #fff;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 0 3px;
+    margin-right: 2px;
+    text-align: center;
+    line-height: 14px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-style: normal;
+    box-sizing: border-box;
+    vertical-align: middle;
   }
 `;
   var pinCSS = `
@@ -1760,6 +1800,8 @@ var Ano = (() => {
         } catch {
         }
       }
+      let firstPtX = null;
+      let firstPtY = null;
       for (const stroke of annotation.strokes) {
         if (stroke.points.length < 2) continue;
         canvasCtx.beginPath();
@@ -1771,10 +1813,13 @@ var Ano = (() => {
           const scaleH = anchorRect.height / anchor.rect.height;
           canvasCtx.lineWidth = stroke.width * Math.min(scaleW, scaleH);
           const first = stroke.points[0];
-          canvasCtx.moveTo(
-            first.x * anchorRect.width + anchorRect.x,
-            first.y * anchorRect.height + anchorRect.y
-          );
+          const fx = first.x * anchorRect.width + anchorRect.x;
+          const fy = first.y * anchorRect.height + anchorRect.y;
+          if (firstPtX === null) {
+            firstPtX = fx;
+            firstPtY = fy;
+          }
+          canvasCtx.moveTo(fx, fy);
           for (let i = 1; i < stroke.points.length; i++) {
             const pt = stroke.points[i];
             canvasCtx.lineTo(
@@ -1787,13 +1832,33 @@ var Ano = (() => {
           const scrollDy = viewport ? window.scrollY - viewport.scrollY : 0;
           canvasCtx.lineWidth = stroke.width;
           const first = stroke.points[0];
-          canvasCtx.moveTo(first.x - scrollDx, first.y - scrollDy);
+          const fx = first.x - scrollDx;
+          const fy = first.y - scrollDy;
+          if (firstPtX === null) {
+            firstPtX = fx;
+            firstPtY = fy;
+          }
+          canvasCtx.moveTo(fx, fy);
           for (let i = 1; i < stroke.points.length; i++) {
             const pt = stroke.points[i];
             canvasCtx.lineTo(pt.x - scrollDx, pt.y - scrollDy);
           }
         }
         canvasCtx.stroke();
+      }
+      if (annotation.index != null && firstPtX !== null) {
+        const r = 9;
+        canvasCtx.save();
+        canvasCtx.beginPath();
+        canvasCtx.arc(firstPtX, firstPtY, r, 0, Math.PI * 2);
+        canvasCtx.fillStyle = "rgba(0,0,0,0.6)";
+        canvasCtx.fill();
+        canvasCtx.fillStyle = "#fff";
+        canvasCtx.font = "bold 10px -apple-system, BlinkMacSystemFont, sans-serif";
+        canvasCtx.textAlign = "center";
+        canvasCtx.textBaseline = "middle";
+        canvasCtx.fillText(String(annotation.index), firstPtX, firstPtY);
+        canvasCtx.restore();
       }
     }
     function applyDrawing(annotation) {
@@ -2696,6 +2761,7 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
     }
     function show(annotationId, anchorRect) {
       init3();
+      if (currentId === annotationId) return;
       hide();
       currentId = annotationId;
       const annotation = store.get(annotationId);
@@ -3574,6 +3640,7 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
         if (!e.data || e.data.source !== "ano-parent") return;
         if (e.data.type === "mode:set") ctx.setMode(e.data.payload);
         else if (e.data.type === "pin:hover") ctx.pinManager.hoverAt(e.data.x, e.data.y);
+        else if (e.data.type === "pin:hover:clear") ctx.pinManager.clearHover();
         else if (e.data.type === "pin:click") ctx.pinManager.clickAt(e.data.x, e.data.y);
         else if (e.data.type === "destroy") destroyInstance();
       };

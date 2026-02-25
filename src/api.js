@@ -161,6 +161,7 @@ export function init(options = {}) {
       if (!e.data || e.data.source !== 'ano-parent') return;
       if (e.data.type === 'mode:set') ctx.setMode(e.data.payload);
       else if (e.data.type === 'pin:hover') ctx.pinManager.hoverAt(e.data.x, e.data.y);
+      else if (e.data.type === 'pin:hover:clear') ctx.pinManager.clearHover();
       else if (e.data.type === 'pin:click') ctx.pinManager.clickAt(e.data.x, e.data.y);
       else if (e.data.type === 'destroy') destroyInstance();
     }

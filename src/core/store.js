@@ -4,7 +4,8 @@ import { nanoid } from './id.js';
 export function createStore() {
   const annotations = new Map();
   const bus = createEventBus();
-  let pinCounter = 0;
+  let annotationCounter = 0;
+  const COUNTED_TYPES = new Set(['highlight', 'pin', 'drawing']);
 
   function add(data) {
     const id = data.id || nanoid();
@@ -13,9 +14,13 @@ export function createStore() {
       id,
       createdAt: data.createdAt || Date.now(),
     };
-    if (annotation.type === 'pin' && annotation.index == null) {
-      pinCounter++;
-      annotation.index = pinCounter;
+    if (COUNTED_TYPES.has(annotation.type)) {
+      if (annotation.index == null) {
+        annotationCounter++;
+        annotation.index = annotationCounter;
+      } else if (annotation.index > annotationCounter) {
+        annotationCounter = annotation.index;
+      }
     }
     annotations.set(id, annotation);
     bus.emit('add', annotation);
@@ -57,14 +62,14 @@ export function createStore() {
   function clear() {
     const all = getAll();
     annotations.clear();
-    pinCounter = 0;
+    annotationCounter = 0;
     bus.emit('clear', all);
     bus.emit('change', { type: 'clear', annotations: all });
   }
 
-  function resetPinCounter() {
-    const pins = getByType('pin');
-    pinCounter = pins.length > 0 ? Math.max(...pins.map((p) => p.index)) : 0;
+  function resetCounter() {
+    const counted = getAll().filter((a) => COUNTED_TYPES.has(a.type) && a.index != null);
+    annotationCounter = counted.length > 0 ? Math.max(...counted.map((a) => a.index)) : 0;
   }
 
   return {
@@ -75,7 +80,7 @@ export function createStore() {
     getAll,
     getByType,
     clear,
-    resetPinCounter,
+    resetCounter,
     on: bus.on,
     off: bus.off,
     emit: bus.emit,
