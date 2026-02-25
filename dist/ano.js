@@ -667,6 +667,20 @@ var Ano = (() => {
       overlay.style.pointerEvents = "none";
       const target = document.elementFromPoint(e.clientX, e.clientY);
       overlay.style.pointerEvents = "auto";
+      if (target && target.tagName === "IFRAME") {
+        const rect = target.getBoundingClientRect();
+        try {
+          target.contentWindow?.postMessage({
+            source: "ano-parent",
+            type: "pin:hover",
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top
+          }, "*");
+        } catch {
+        }
+        hoverOutline.style.display = "none";
+        return;
+      }
       if (target && target !== document.body && target !== document.documentElement && !isAnoElement2(target)) {
         const rect = target.getBoundingClientRect();
         hoverOutline.style.display = "block";
@@ -686,6 +700,19 @@ var Ano = (() => {
       overlay.style.pointerEvents = "none";
       const target = document.elementFromPoint(e.clientX, e.clientY);
       overlay.style.pointerEvents = "auto";
+      if (target && target.tagName === "IFRAME") {
+        const rect = target.getBoundingClientRect();
+        try {
+          target.contentWindow?.postMessage({
+            source: "ano-parent",
+            type: "pin:click",
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top
+          }, "*");
+        } catch {
+        }
+        return;
+      }
       if (!target || target === document.body || target === document.documentElement || isAnoElement2(target)) {
         return;
       }
@@ -746,6 +773,31 @@ var Ano = (() => {
       for (const [id] of [...pinElements]) {
         removePin(id);
       }
+    }
+    function hoverAt(x, y) {
+      if (!active || !hoverOutline) return;
+      const target = document.elementFromPoint(x, y);
+      if (target && target !== document.body && target !== document.documentElement && !isAnoElement2(target)) {
+        const rect = target.getBoundingClientRect();
+        hoverOutline.style.display = "block";
+        hoverOutline.style.left = `${rect.left + window.scrollX}px`;
+        hoverOutline.style.top = `${rect.top + window.scrollY}px`;
+        hoverOutline.style.width = `${rect.width}px`;
+        hoverOutline.style.height = `${rect.height}px`;
+      } else {
+        hoverOutline.style.display = "none";
+      }
+    }
+    function clickAt(x, y) {
+      if (!active) return;
+      const target = document.elementFromPoint(x, y);
+      if (!target || target === document.body || target === document.documentElement || isAnoElement2(target)) return;
+      const targetSelector = generateCSSSelector(target);
+      const targetMeta = getTargetMeta(target);
+      const context = capturePinContext(target);
+      const annotation = store.add({ type: "pin", comment: "", targetSelector, targetMeta, context });
+      createPinMarker(annotation, target);
+      ctx.events.emit("pin:created", annotation);
     }
     function scrollToPin(id) {
       const entry = pinElements.get(id);
@@ -847,6 +899,8 @@ var Ano = (() => {
       removeAll,
       repositionAll,
       scrollToPin,
+      hoverAt,
+      clickAt,
       destroy: destroy3
     };
   }
@@ -3515,6 +3569,8 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
       let onParentMessage = function(e) {
         if (!e.data || e.data.source !== "ano-parent") return;
         if (e.data.type === "mode:set") ctx.setMode(e.data.payload);
+        else if (e.data.type === "pin:hover") ctx.pinManager.hoverAt(e.data.x, e.data.y);
+        else if (e.data.type === "pin:click") ctx.pinManager.clickAt(e.data.x, e.data.y);
         else if (e.data.type === "destroy") destroyInstance();
       };
       store.on("add", (a) => window.parent.postMessage(
@@ -3588,6 +3644,14 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
   function destroyInstance() {
     if (!instance) return;
     const { ctx, repositionHandler, observer, unsubPersist, persistTimer, isChildFrame } = instance;
+    if (!isChildFrame) {
+      for (const iframe of document.querySelectorAll("iframe")) {
+        try {
+          iframe.contentWindow?.postMessage({ source: "ano-parent", type: "destroy" }, "*");
+        } catch {
+        }
+      }
+    }
     if (unsubPersist) unsubPersist();
     if (persistTimer) clearTimeout(persistTimer);
     observer.disconnect();
@@ -3743,8 +3807,7 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
       if (wasRecording) {
         ctx.recordingManager.stopRecording();
       }
-      disableMode(ctx, ctx.mode);
-      ctx.mode = "navigate";
+      ctx.setMode("navigate");
       ctx.sessionState = "ending";
       ctx.toolbar.renderIdle();
       let blob = null;

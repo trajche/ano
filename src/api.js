@@ -160,6 +160,8 @@ export function init(options = {}) {
     function onParentMessage(e) {
       if (!e.data || e.data.source !== 'ano-parent') return;
       if (e.data.type === 'mode:set') ctx.setMode(e.data.payload);
+      else if (e.data.type === 'pin:hover') ctx.pinManager.hoverAt(e.data.x, e.data.y);
+      else if (e.data.type === 'pin:click') ctx.pinManager.clickAt(e.data.x, e.data.y);
       else if (e.data.type === 'destroy') destroyInstance();
     }
     window.addEventListener('message', onParentMessage);
@@ -231,6 +233,14 @@ function clearInstance() {
 function destroyInstance() {
   if (!instance) return;
   const { ctx, repositionHandler, observer, unsubPersist, persistTimer, isChildFrame } = instance;
+
+  // Broadcast destroy to all child frames before cleaning up
+  if (!isChildFrame) {
+    for (const iframe of document.querySelectorAll('iframe')) {
+      try { iframe.contentWindow?.postMessage({ source: 'ano-parent', type: 'destroy' }, '*'); }
+      catch {}
+    }
+  }
 
   if (unsubPersist) unsubPersist();
   if (persistTimer) clearTimeout(persistTimer);
@@ -413,9 +423,8 @@ function wireEvents(ctx) {
       ctx.recordingManager.stopRecording();
     }
 
-    // Disable current annotation mode
-    disableMode(ctx, ctx.mode);
-    ctx.mode = 'navigate';
+    // Disable current annotation mode and broadcast navigate to child frames
+    ctx.setMode('navigate');
     ctx.sessionState = 'ending';
     ctx.toolbar.renderIdle();
 

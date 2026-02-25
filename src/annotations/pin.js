@@ -53,6 +53,19 @@ export function createPinManager(ctx) {
     const target = document.elementFromPoint(e.clientX, e.clientY);
     overlay.style.pointerEvents = 'auto';
 
+    if (target && target.tagName === 'IFRAME') {
+      // Forward hover into child frame — child's own overlay shows the highlight
+      const rect = target.getBoundingClientRect();
+      try {
+        target.contentWindow?.postMessage({
+          source: 'ano-parent', type: 'pin:hover',
+          x: e.clientX - rect.left, y: e.clientY - rect.top,
+        }, '*');
+      } catch {}
+      hoverOutline.style.display = 'none';
+      return;
+    }
+
     if (target && target !== document.body && target !== document.documentElement && !isAnoElement(target)) {
       const rect = target.getBoundingClientRect();
       hoverOutline.style.display = 'block';
@@ -76,6 +89,18 @@ export function createPinManager(ctx) {
     overlay.style.pointerEvents = 'none';
     const target = document.elementFromPoint(e.clientX, e.clientY);
     overlay.style.pointerEvents = 'auto';
+
+    if (target && target.tagName === 'IFRAME') {
+      // Forward click into child frame
+      const rect = target.getBoundingClientRect();
+      try {
+        target.contentWindow?.postMessage({
+          source: 'ano-parent', type: 'pin:click',
+          x: e.clientX - rect.left, y: e.clientY - rect.top,
+        }, '*');
+      } catch {}
+      return;
+    }
 
     if (!target || target === document.body || target === document.documentElement || isAnoElement(target)) {
       return;
@@ -150,6 +175,36 @@ export function createPinManager(ctx) {
     for (const [id] of [...pinElements]) {
       removePin(id);
     }
+  }
+
+  // Called in child frames when parent forwards a hover position
+  function hoverAt(x, y) {
+    if (!active || !hoverOutline) return;
+    const target = document.elementFromPoint(x, y);
+    if (target && target !== document.body && target !== document.documentElement && !isAnoElement(target)) {
+      const rect = target.getBoundingClientRect();
+      hoverOutline.style.display = 'block';
+      hoverOutline.style.left = `${rect.left + window.scrollX}px`;
+      hoverOutline.style.top = `${rect.top + window.scrollY}px`;
+      hoverOutline.style.width = `${rect.width}px`;
+      hoverOutline.style.height = `${rect.height}px`;
+    } else {
+      hoverOutline.style.display = 'none';
+    }
+  }
+
+  // Called in child frames when parent forwards a click position
+  function clickAt(x, y) {
+    if (!active) return;
+    const target = document.elementFromPoint(x, y);
+    if (!target || target === document.body || target === document.documentElement || isAnoElement(target)) return;
+
+    const targetSelector = generateCSSSelector(target);
+    const targetMeta = getTargetMeta(target);
+    const context = capturePinContext(target);
+    const annotation = store.add({ type: 'pin', comment: '', targetSelector, targetMeta, context });
+    createPinMarker(annotation, target);
+    ctx.events.emit('pin:created', annotation);
   }
 
   function scrollToPin(id) {
@@ -258,6 +313,8 @@ export function createPinManager(ctx) {
     removeAll,
     repositionAll,
     scrollToPin,
+    hoverAt,
+    clickAt,
     destroy,
   };
 }
