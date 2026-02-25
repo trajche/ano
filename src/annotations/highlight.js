@@ -171,8 +171,8 @@ export function createHighlightManager(ctx) {
 
   function positionMarker(marker, target) {
     const rect = target.getBoundingClientRect();
-    marker.style.left = `${rect.left + window.scrollX - 12}px`;
-    marker.style.top = `${rect.top + window.scrollY - 12}px`;
+    marker.style.left = `${rect.left + window.scrollX - 20}px`;
+    marker.style.top = `${rect.top + window.scrollY - 20}px`;
   }
 
   function repositionAll() {

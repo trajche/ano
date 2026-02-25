@@ -510,8 +510,8 @@ var Ano = (() => {
     }
     function positionMarker(marker, target) {
       const rect = target.getBoundingClientRect();
-      marker.style.left = `${rect.left + window.scrollX - 12}px`;
-      marker.style.top = `${rect.top + window.scrollY - 12}px`;
+      marker.style.left = `${rect.left + window.scrollX - 20}px`;
+      marker.style.top = `${rect.top + window.scrollY - 20}px`;
     }
     function repositionAll() {
       for (const [id, marker] of markerElements) {
@@ -799,8 +799,8 @@ var Ano = (() => {
     }
     function positionMarker(marker, target) {
       const rect = target.getBoundingClientRect();
-      marker.style.left = `${rect.left + window.scrollX - 12}px`;
-      marker.style.top = `${rect.top + window.scrollY - 12}px`;
+      marker.style.left = `${rect.left + window.scrollX - 20}px`;
+      marker.style.top = `${rect.top + window.scrollY - 20}px`;
     }
     function repositionAll() {
       for (const [id, { marker, target }] of pinElements) {
@@ -1898,8 +1898,8 @@ var Ano = (() => {
       });
     }
     function positionDrawingMarker(marker, box) {
-      marker.style.left = `${box.x + window.scrollX - 12}px`;
-      marker.style.top = `${box.y + window.scrollY - 12}px`;
+      marker.style.left = `${box.x + window.scrollX - 20}px`;
+      marker.style.top = `${box.y + window.scrollY - 20}px`;
     }
     function repositionAll() {
       for (const [id, marker] of markerElements) {
