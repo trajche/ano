@@ -1,4 +1,4 @@
-import { buildExportData } from './export.js';
+import { buildExportData, buildMarkdown } from './export.js';
 
 const TUS_BASE = 'https://share.mk/files/';
 
@@ -36,6 +36,74 @@ async function tusUpload(bytes, metadata) {
   if (!patchRes.ok) throw new Error(`Patch failed: ${patchRes.status}`);
 
   return fileUrl;
+}
+
+export async function shareJSON(store, crossPageAnnotations, events) {
+  try {
+    events.emit('share:uploading');
+    const data = buildExportData(store, crossPageAnnotations);
+    const bytes = new TextEncoder().encode(JSON.stringify(data, null, 2));
+    const url = await tusUpload(bytes, [
+      ['filename', 'annotations.json'],
+      ['content-type', 'application/json'],
+      ['expires-in', '7d'],
+    ]);
+    try { await navigator.clipboard.writeText(url); } catch { /* clipboard may be blocked */ }
+    events.emit('share:complete', url);
+    return url;
+  } catch (err) {
+    events.emit('share:error', err);
+    return null;
+  }
+}
+
+export async function shareVideo(store, events) {
+  try {
+    events.emit('share:uploading');
+    let blob = null;
+    let filename = null;
+    for (const ann of store.getAll()) {
+      if ((ann.type === 'recording' || ann.type === 'session') && ann.blob) {
+        blob = ann.blob;
+        filename = ann.type === 'recording'
+          ? `recording-${ann.id}.webm`
+          : `session-${ann.sessionId || ann.id}.webm`;
+        break;
+      }
+    }
+    if (!blob) throw new Error('No video recording found');
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    const url = await tusUpload(bytes, [
+      ['filename', filename],
+      ['content-type', 'video/webm'],
+      ['expires-in', '7d'],
+    ]);
+    try { await navigator.clipboard.writeText(url); } catch { /* clipboard may be blocked */ }
+    events.emit('share:complete', url);
+    return url;
+  } catch (err) {
+    events.emit('share:error', err);
+    return null;
+  }
+}
+
+export async function shareMarkdown(store, crossPageAnnotations, events) {
+  try {
+    events.emit('share:uploading');
+    const data = buildExportData(store, crossPageAnnotations);
+    const bytes = new TextEncoder().encode(buildMarkdown(data));
+    const url = await tusUpload(bytes, [
+      ['filename', 'annotations.md'],
+      ['content-type', 'text/markdown'],
+      ['expires-in', '7d'],
+    ]);
+    try { await navigator.clipboard.writeText(url); } catch { /* clipboard may be blocked */ }
+    events.emit('share:complete', url);
+    return url;
+  } catch (err) {
+    events.emit('share:error', err);
+    return null;
+  }
 }
 
 export async function shareAnnotations(store, crossPageAnnotations, events) {

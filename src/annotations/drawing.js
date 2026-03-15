@@ -1,5 +1,6 @@
 import { canvasCSS } from '../ui/styles.js';
 import { generateCSSSelector } from '../anchoring/selector.js';
+import { truncate } from '../utils.js';
 
 export function createDrawingManager(ctx) {
   const { store, config } = ctx;
@@ -265,10 +266,6 @@ export function createDrawingManager(ctx) {
     // Fall back to full textContent for leaf-like elements
     const full = (el.textContent || '').trim();
     return full.slice(0, 120);
-  }
-
-  function truncate(str, max) {
-    return str.length > max ? str.slice(0, max) + '...' : str;
   }
 
   function redrawAll() {

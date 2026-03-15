@@ -10,7 +10,7 @@ const RECORDER_HTML = `<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"><title>Ano Recording</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;background:#1e293b;color:#f1f5f9;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:12px}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;background:#1e293b;color:#f1f5f9;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:16px}
 .wrap{display:flex;align-items:center;gap:10px}
 .dot{width:10px;height:10px;border-radius:50%;background:#ef4444;animation:p 1s ease-in-out infinite;flex-shrink:0}
 @keyframes p{0%,100%{opacity:1}50%{opacity:.3}}
@@ -20,22 +20,60 @@ button:hover{background:rgba(255,255,255,.12)}
 #start{background:#ef4444;border-color:#ef4444;font-weight:600;padding:8px 20px;font-size:14px}
 #start:hover{background:#dc2626}
 .msg{color:#94a3b8;font-size:12px;text-align:center}
+.setup{display:flex;flex-direction:column;align-items:center;gap:14px}
+.opt{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:#cbd5e1}
+.opt input{width:15px;height:15px;cursor:pointer;accent-color:#ef4444}
 </style></head><body>
-<div id="app"><button id="start">Share Tab &amp; Record</button></div>
+<div id="app">
+<div class="setup">
+<label class="opt"><input type="checkbox" id="mic"> Include microphone</label>
+<button id="start">Share Tab &amp; Record</button>
+</div>
+</div>
 <script>
 var ch=new BroadcastChannel('ano-recording');
-var rec,chunks=[],startTime=0,stream,timerIv;
+var rec,chunks=[],startTime=0,stream,micStream,audioCtx,timerIv;
 ch.onmessage=function(e){
 if(e.data.type==='stop')doStop();
 if(e.data.type==='ping'&&rec&&rec.state==='recording')ch.postMessage({type:'pong',startTime:startTime});
 };
 document.getElementById('start').onclick=function(){startCapture()};
 function startCapture(){
-navigator.mediaDevices.getDisplayMedia({video:{frameRate:30}}).then(function(s){
+var useMic=document.getElementById('mic').checked;
+navigator.mediaDevices.getDisplayMedia({video:{frameRate:30},audio:true}).then(function(s){
 stream=s;
+if(useMic){
+navigator.mediaDevices.getUserMedia({audio:true,video:false}).then(function(ms){
+micStream=ms;
+beginRecording(mixAudio(stream,ms));
+}).catch(function(){
+beginRecording(stream);
+});
+}else{
+beginRecording(stream);
+}
+}).catch(function(){
+ch.postMessage({type:'cancelled'});
+try{window.close()}catch(e){}
+});
+}
+function mixAudio(dispStream,mic){
+var dispAudio=dispStream.getAudioTracks();
+var micAudio=mic.getAudioTracks();
+var video=dispStream.getVideoTracks()[0];
+if(!dispAudio.length)return new MediaStream([video].concat(micAudio));
+if(!micAudio.length)return dispStream;
+audioCtx=new AudioContext();
+var dest=audioCtx.createMediaStreamDestination();
+audioCtx.createMediaStreamSource(new MediaStream(dispAudio)).connect(dest);
+audioCtx.createMediaStreamSource(new MediaStream(micAudio)).connect(dest);
+return new MediaStream([video,dest.stream.getAudioTracks()[0]]);
+}
+function beginRecording(s){
 var mime='video/webm';
-if(typeof MediaRecorder.isTypeSupported==='function'&&MediaRecorder.isTypeSupported('video/webm;codecs=vp9'))mime='video/webm;codecs=vp9';
-rec=new MediaRecorder(stream,{mimeType:mime});
+if(MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus'))mime='video/webm;codecs=vp9,opus';
+else if(MediaRecorder.isTypeSupported('video/webm;codecs=vp9'))mime='video/webm;codecs=vp9';
+rec=new MediaRecorder(s,{mimeType:mime});
 chunks=[];
 rec.ondataavailable=function(e){if(e.data.size>0)chunks.push(e.data)};
 rec.onstop=onStop;
@@ -50,14 +88,12 @@ var el=document.getElementById('t');
 if(el)el.textContent=Math.floor(sec/60)+':'+(sec%60).toString().padStart(2,'0');
 },250);
 ch.postMessage({type:'started',startTime:startTime});
-}).catch(function(){
-ch.postMessage({type:'cancelled'});
-try{window.close()}catch(e){}
-});
 }
 function doStop(){if(!rec||rec.state==='inactive')return;rec.stop()}
 function onStop(){
 clearInterval(timerIv);
+if(micStream)micStream.getTracks().forEach(function(t){t.stop()});
+if(audioCtx)try{audioCtx.close()}catch(e){}
 if(stream)stream.getTracks().forEach(function(t){t.stop()});
 var blob=new Blob(chunks,{type:'video/webm'});
 var duration=Date.now()-startTime;
@@ -118,7 +154,7 @@ export function createRecordingManager(ctx) {
     popupWindow = window.open(
       '',
       'ano-recorder',
-      'width=460,height=600,top=60,left=60',
+      'width=360,height=200,top=60,left=60',
     );
     if (!popupWindow) {
       console.warn('[Ano] Popup blocked — allow popups for screen recording.');

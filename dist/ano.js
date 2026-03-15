@@ -330,9 +330,7 @@ var Ano = (() => {
     if (path[0] && !path[0].startsWith("#")) {
       path.unshift("body");
     }
-    const selector = path.join(" > ");
-    if (isUnique(selector)) return selector;
-    return selector;
+    return path.join(" > ");
   }
   function getTargetMeta(element) {
     return {
@@ -383,6 +381,23 @@ var Ano = (() => {
     return actual === expectedText;
   }
 
+  // src/utils.js
+  function isAnoElement(el2) {
+    if (!el2) return false;
+    if (el2.closest && el2.closest("[data-ano]")) return true;
+    let node = el2;
+    while (node) {
+      if (node.host && node.host.dataset && node.host.dataset.ano !== void 0) return true;
+      if (node.dataset && node.dataset.ano !== void 0) return true;
+      node = node.parentNode;
+    }
+    return false;
+  }
+  function truncate(str, max) {
+    if (!str) return "";
+    return str.length > max ? str.slice(0, max) + "..." : str;
+  }
+
   // src/annotations/highlight.js
   function createHighlightManager(ctx) {
     const { store, config } = ctx;
@@ -393,13 +408,25 @@ var Ano = (() => {
       if (active) return;
       active = true;
       document.addEventListener("mouseup", onMouseUp, true);
+      document.addEventListener("mousedown", onCapturePrevent, true);
+      document.addEventListener("click", onCapturePrevent, true);
+      document.addEventListener("dblclick", onCapturePrevent, true);
+      document.addEventListener("contextmenu", onCapturePrevent, true);
     }
     function disable() {
       active = false;
       document.removeEventListener("mouseup", onMouseUp, true);
+      document.removeEventListener("mousedown", onCapturePrevent, true);
+      document.removeEventListener("click", onCapturePrevent, true);
+      document.removeEventListener("dblclick", onCapturePrevent, true);
+      document.removeEventListener("contextmenu", onCapturePrevent, true);
+    }
+    function onCapturePrevent(e) {
+      if (!isAnoElement(e.target)) e.stopPropagation();
     }
     function onMouseUp(e) {
       if (isAnoElement(e.target)) return;
+      e.stopPropagation();
       const selection = window.getSelection();
       if (!selection || selection.isCollapsed || !selection.rangeCount) return;
       const range = selection.getRangeAt(0);
@@ -555,7 +582,7 @@ var Ano = (() => {
       const containerInfo = {
         selector: generateCSSSelector(semantic),
         tagName: semantic.tagName,
-        text: truncate3(getDirectText(semantic), 200)
+        text: truncate(getDirectText(semantic), 200)
       };
       const path = [];
       let walk = semantic;
@@ -574,7 +601,7 @@ var Ano = (() => {
       if (idx !== -1) {
         const before = fullText.slice(Math.max(0, idx - 80), idx).trim();
         const after = fullText.slice(idx + text.length, idx + text.length + 80).trim();
-        surroundingText = (before ? "..." + before + " " : "") + "[" + truncate3(text, 100) + "]" + (after ? " " + after + "..." : "");
+        surroundingText = (before ? "..." + before + " " : "") + "[" + truncate(text, 100) + "]" + (after ? " " + after + "..." : "");
       }
       return {
         element: containerInfo,
@@ -634,9 +661,6 @@ var Ano = (() => {
       }
       return text.trim() || (el2.textContent || "").trim().slice(0, 200);
     }
-    function truncate3(str, max) {
-      return str.length > max ? str.slice(0, max) + "..." : str;
-    }
     function destroy3() {
       disable();
       removeAll();
@@ -652,17 +676,6 @@ var Ano = (() => {
       destroy: destroy3
     };
   }
-  function isAnoElement(el2) {
-    if (!el2) return false;
-    if (el2.closest && el2.closest("[data-ano]")) return true;
-    let node = el2;
-    while (node) {
-      if (node.host && node.host.dataset && node.host.dataset.ano !== void 0) return true;
-      if (node.dataset && node.dataset.ano !== void 0) return true;
-      node = node.parentNode;
-    }
-    return false;
-  }
 
   // src/annotations/pin.js
   function createPinManager(ctx) {
@@ -676,12 +689,21 @@ var Ano = (() => {
       if (active) return;
       active = true;
       createOverlay();
-      document.addEventListener("mousemove", onMouseMove, true);
+      document.addEventListener("mousedown", onCapturePrevent, true);
+      document.addEventListener("click", onCapturePrevent, true);
+      document.addEventListener("dblclick", onCapturePrevent, true);
+      document.addEventListener("contextmenu", onCapturePrevent, true);
     }
     function disable() {
       active = false;
       removeOverlay();
-      document.removeEventListener("mousemove", onMouseMove, true);
+      document.removeEventListener("mousedown", onCapturePrevent, true);
+      document.removeEventListener("click", onCapturePrevent, true);
+      document.removeEventListener("dblclick", onCapturePrevent, true);
+      document.removeEventListener("contextmenu", onCapturePrevent, true);
+    }
+    function onCapturePrevent(e) {
+      if (!isAnoElement(e.target)) e.stopPropagation();
     }
     function createOverlay() {
       overlay = document.createElement("div");
@@ -733,7 +755,7 @@ var Ano = (() => {
         }
         lastHoveredIframe = null;
       }
-      if (target && target !== document.body && target !== document.documentElement && !isAnoElement2(target)) {
+      if (target && target !== document.body && target !== document.documentElement && !isAnoElement(target)) {
         const rect = target.getBoundingClientRect();
         hoverOutline.style.display = "block";
         hoverOutline.style.left = `${rect.left + window.scrollX}px`;
@@ -743,8 +765,6 @@ var Ano = (() => {
       } else {
         hoverOutline.style.display = "none";
       }
-    }
-    function onMouseMove() {
     }
     function onOverlayClick(e) {
       e.preventDefault();
@@ -766,7 +786,7 @@ var Ano = (() => {
         ctx.setMode("navigate");
         return;
       }
-      if (!target || target === document.body || target === document.documentElement || isAnoElement2(target)) {
+      if (!target || target === document.body || target === document.documentElement || isAnoElement(target)) {
         return;
       }
       const targetSelector = generateCSSSelector(target);
@@ -832,7 +852,7 @@ var Ano = (() => {
       if (overlay) overlay.style.pointerEvents = "none";
       const target = document.elementFromPoint(x, y);
       if (overlay) overlay.style.pointerEvents = "auto";
-      if (target && target !== document.body && target !== document.documentElement && !isAnoElement2(target)) {
+      if (target && target !== document.body && target !== document.documentElement && !isAnoElement(target)) {
         const rect = target.getBoundingClientRect();
         hoverOutline.style.display = "block";
         hoverOutline.style.left = `${rect.left + window.scrollX}px`;
@@ -848,7 +868,7 @@ var Ano = (() => {
       if (overlay) overlay.style.pointerEvents = "none";
       const target = document.elementFromPoint(x, y);
       if (overlay) overlay.style.pointerEvents = "auto";
-      if (!target || target === document.body || target === document.documentElement || isAnoElement2(target)) return;
+      if (!target || target === document.body || target === document.documentElement || isAnoElement(target)) return;
       const targetSelector = generateCSSSelector(target);
       const targetMeta = getTargetMeta(target);
       const context = capturePinContext(target);
@@ -908,15 +928,15 @@ var Ano = (() => {
         for (const child of parent.children) {
           if (child === target) continue;
           const sib = child.tagName.toLowerCase();
-          const sibText = truncate3((child.textContent || "").trim(), 60);
+          const sibText = truncate((child.textContent || "").trim(), 60);
           if (sibText) siblings.push(`${sib}("${sibText}")`);
           if (siblings.length >= 4) break;
         }
       }
       let desc = `${tag}`;
-      if (visibleText) desc += `("${truncate3(visibleText, 80)}")`;
+      if (visibleText) desc += `("${truncate(visibleText, 80)}")`;
       if (attrs.type) desc += `[type=${attrs.type}]`;
-      if (attrs.href) desc += `[href=${truncate3(attrs.href, 60)}]`;
+      if (attrs.href) desc += `[href=${truncate(attrs.href, 60)}]`;
       if (attrs.role) desc += `[role=${attrs.role}]`;
       const parentTag = parent ? parent.tagName.toLowerCase() : "";
       if (parentTag) desc += ` inside ${parentTag}`;
@@ -944,9 +964,6 @@ var Ano = (() => {
       if (text) return text;
       return (el2.textContent || "").trim().slice(0, 150);
     }
-    function truncate3(str, max) {
-      return str.length > max ? str.slice(0, max) + "..." : str;
-    }
     function destroy3() {
       disable();
       removeAll();
@@ -964,16 +981,6 @@ var Ano = (() => {
       clearHover,
       destroy: destroy3
     };
-  }
-  function isAnoElement2(el2) {
-    if (!el2) return false;
-    let node = el2;
-    while (node) {
-      if (node.dataset && node.dataset.ano !== void 0) return true;
-      if (node.host && node.host.dataset && node.host.dataset.ano !== void 0) return true;
-      node = node.parentNode;
-    }
-    return false;
   }
 
   // src/ui/styles.js
@@ -1457,13 +1464,22 @@ var Ano = (() => {
   }
   .ano-end-actions {
     display: flex;
-    gap: 8px;
-    padding: 16px 20px;
+    flex-direction: column;
+    gap: 6px;
+    padding: 14px 20px;
     border-top: 1px solid var(--ano-border);
-    justify-content: flex-end;
   }
-  .ano-end-actions button {
-    padding: 7px 16px;
+  .ano-end-export-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  .ano-end-export-dl {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 14px;
     border-radius: 8px;
     border: 1px solid var(--ano-border);
     background: var(--ano-bg);
@@ -1473,19 +1489,33 @@ var Ano = (() => {
     cursor: pointer;
     transition: all 0.15s;
   }
-  .ano-end-actions button:hover {
+  .ano-end-export-dl:hover {
     background: var(--ano-bg-hover);
   }
-  .ano-end-actions button.primary {
-    background: var(--ano-accent);
-    color: #fff;
-    border-color: var(--ano-accent);
+  .ano-end-export-dl svg {
+    flex-shrink: 0;
+    opacity: 0.6;
   }
-  .ano-end-actions button.primary:hover {
-    background: var(--ano-accent-hover);
+  .ano-end-export-share {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    flex-shrink: 0;
+    border-radius: 8px;
+    border: 1px solid var(--ano-border);
+    background: var(--ano-bg);
+    color: var(--ano-text-secondary);
+    cursor: pointer;
+    transition: all 0.15s;
   }
-  .ano-end-actions button:disabled {
-    opacity: 0.5;
+  .ano-end-export-share:hover {
+    background: var(--ano-bg-hover);
+    color: var(--ano-text);
+  }
+  .ano-end-export-share:disabled {
+    opacity: 0.4;
     cursor: default;
   }
   .ano-end-link-result {
@@ -1798,7 +1828,7 @@ var Ano = (() => {
       host.style.display = prevDisplay;
       const parts = elements.map((e) => {
         const tag = e.tagName.toLowerCase();
-        const label = e.text ? `${tag}("${truncate3(e.text, 60)}")` : tag;
+        const label = e.text ? `${tag}("${truncate(e.text, 60)}")` : tag;
         return label;
       });
       const description = parts.length > 0 ? `Drawing over: ${parts.join(", ")}` : "Drawing on empty area";
@@ -1819,9 +1849,6 @@ var Ano = (() => {
       if (text) return text;
       const full = (el2.textContent || "").trim();
       return full.slice(0, 120);
-    }
-    function truncate3(str, max) {
-      return str.length > max ? str.slice(0, max) + "..." : str;
     }
     function redrawAll() {
       if (!canvasCtx) return;
@@ -2011,7 +2038,7 @@ var Ano = (() => {
 <html lang="en"><head><meta charset="UTF-8"><title>Ano Recording</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;background:#1e293b;color:#f1f5f9;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:12px}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;background:#1e293b;color:#f1f5f9;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:16px}
 .wrap{display:flex;align-items:center;gap:10px}
 .dot{width:10px;height:10px;border-radius:50%;background:#ef4444;animation:p 1s ease-in-out infinite;flex-shrink:0}
 @keyframes p{0%,100%{opacity:1}50%{opacity:.3}}
@@ -2021,22 +2048,60 @@ button:hover{background:rgba(255,255,255,.12)}
 #start{background:#ef4444;border-color:#ef4444;font-weight:600;padding:8px 20px;font-size:14px}
 #start:hover{background:#dc2626}
 .msg{color:#94a3b8;font-size:12px;text-align:center}
+.setup{display:flex;flex-direction:column;align-items:center;gap:14px}
+.opt{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:#cbd5e1}
+.opt input{width:15px;height:15px;cursor:pointer;accent-color:#ef4444}
 </style></head><body>
-<div id="app"><button id="start">Share Tab &amp; Record</button></div>
+<div id="app">
+<div class="setup">
+<label class="opt"><input type="checkbox" id="mic"> Include microphone</label>
+<button id="start">Share Tab &amp; Record</button>
+</div>
+</div>
 <script>
 var ch=new BroadcastChannel('ano-recording');
-var rec,chunks=[],startTime=0,stream,timerIv;
+var rec,chunks=[],startTime=0,stream,micStream,audioCtx,timerIv;
 ch.onmessage=function(e){
 if(e.data.type==='stop')doStop();
 if(e.data.type==='ping'&&rec&&rec.state==='recording')ch.postMessage({type:'pong',startTime:startTime});
 };
 document.getElementById('start').onclick=function(){startCapture()};
 function startCapture(){
-navigator.mediaDevices.getDisplayMedia({video:{frameRate:30}}).then(function(s){
+var useMic=document.getElementById('mic').checked;
+navigator.mediaDevices.getDisplayMedia({video:{frameRate:30},audio:true}).then(function(s){
 stream=s;
+if(useMic){
+navigator.mediaDevices.getUserMedia({audio:true,video:false}).then(function(ms){
+micStream=ms;
+beginRecording(mixAudio(stream,ms));
+}).catch(function(){
+beginRecording(stream);
+});
+}else{
+beginRecording(stream);
+}
+}).catch(function(){
+ch.postMessage({type:'cancelled'});
+try{window.close()}catch(e){}
+});
+}
+function mixAudio(dispStream,mic){
+var dispAudio=dispStream.getAudioTracks();
+var micAudio=mic.getAudioTracks();
+var video=dispStream.getVideoTracks()[0];
+if(!dispAudio.length)return new MediaStream([video].concat(micAudio));
+if(!micAudio.length)return dispStream;
+audioCtx=new AudioContext();
+var dest=audioCtx.createMediaStreamDestination();
+audioCtx.createMediaStreamSource(new MediaStream(dispAudio)).connect(dest);
+audioCtx.createMediaStreamSource(new MediaStream(micAudio)).connect(dest);
+return new MediaStream([video,dest.stream.getAudioTracks()[0]]);
+}
+function beginRecording(s){
 var mime='video/webm';
-if(typeof MediaRecorder.isTypeSupported==='function'&&MediaRecorder.isTypeSupported('video/webm;codecs=vp9'))mime='video/webm;codecs=vp9';
-rec=new MediaRecorder(stream,{mimeType:mime});
+if(MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus'))mime='video/webm;codecs=vp9,opus';
+else if(MediaRecorder.isTypeSupported('video/webm;codecs=vp9'))mime='video/webm;codecs=vp9';
+rec=new MediaRecorder(s,{mimeType:mime});
 chunks=[];
 rec.ondataavailable=function(e){if(e.data.size>0)chunks.push(e.data)};
 rec.onstop=onStop;
@@ -2051,14 +2116,12 @@ var el=document.getElementById('t');
 if(el)el.textContent=Math.floor(sec/60)+':'+(sec%60).toString().padStart(2,'0');
 },250);
 ch.postMessage({type:'started',startTime:startTime});
-}).catch(function(){
-ch.postMessage({type:'cancelled'});
-try{window.close()}catch(e){}
-});
 }
 function doStop(){if(!rec||rec.state==='inactive')return;rec.stop()}
 function onStop(){
 clearInterval(timerIv);
+if(micStream)micStream.getTracks().forEach(function(t){t.stop()});
+if(audioCtx)try{audioCtx.close()}catch(e){}
 if(stream)stream.getTracks().forEach(function(t){t.stop()});
 var blob=new Blob(chunks,{type:'video/webm'});
 var duration=Date.now()-startTime;
@@ -2107,7 +2170,7 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
       popupWindow = window.open(
         "",
         "ano-recorder",
-        "width=460,height=600,top=60,left=60"
+        "width=360,height=200,top=60,left=60"
       );
       if (!popupWindow) {
         console.warn("[Ano] Popup blocked \u2014 allow popups for screen recording.");
@@ -2240,16 +2303,6 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
       const ac = el2.autocomplete || "";
       return SENSITIVE_PATTERNS.test(ac);
     }
-    function isAnoElement3(el2) {
-      if (!el2) return false;
-      if (el2.closest?.("[data-ano]")) return true;
-      let node = el2;
-      while (node) {
-        if (node.host && node.host.dataset && node.host.dataset.ano !== void 0) return true;
-        node = node.parentNode;
-      }
-      return false;
-    }
     function recordAction(action, target, selector, value, url) {
       const entry = {
         time: Date.now() - startTime,
@@ -2264,7 +2317,7 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
       ctx.events.emit("session:action", actions.length);
     }
     function onSessionClick(e) {
-      if (isAnoElement3(e.target)) return;
+      if (isAnoElement(e.target)) return;
       const el2 = e.target;
       let selector = null;
       try {
@@ -2274,7 +2327,7 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
       recordAction("click", describeElement(el2), selector, null);
     }
     function onSessionInput(e) {
-      if (isAnoElement3(e.target)) return;
+      if (isAnoElement(e.target)) return;
       const el2 = e.target;
       const prev = inputTimers.get(el2);
       if (prev) clearTimeout(prev);
@@ -2291,7 +2344,7 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
       inputTimers.set(el2, timer);
     }
     function onSessionChange(e) {
-      if (isAnoElement3(e.target)) return;
+      if (isAnoElement(e.target)) return;
       const el2 = e.target;
       const tag = el2.tagName.toLowerCase();
       const type = el2.type?.toLowerCase();
@@ -2324,7 +2377,7 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
       }, 300);
     }
     function onSessionSubmit(e) {
-      if (isAnoElement3(e.target)) return;
+      if (isAnoElement(e.target)) return;
       const form = e.target;
       let selector = null;
       try {
@@ -2487,7 +2540,6 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
         pages: pages.slice(),
         description
       };
-      const stoppedId = sessionId;
       actions = [];
       pages = [];
       startTime = 0;
@@ -2601,14 +2653,9 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
       getSessionId,
       getStartTime,
       getActionCount,
-      checkResume,
       removeSession,
       destroy: destroy3
     };
-  }
-  function truncate(str, max) {
-    if (!str) return "";
-    return str.length > max ? str.slice(0, max) + "..." : str;
   }
 
   // src/ui/components.js
@@ -2652,7 +2699,9 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
       stop: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="6" width="12" height="12" rx="1" fill="currentColor" stroke="none"/></svg>',
       session: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>',
       annotation: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
-      link: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>'
+      link: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>',
+      clipboard: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>',
+      check: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>'
     };
     const wrapper = document.createElement("span");
     wrapper.innerHTML = icons[name] || "";
@@ -2977,19 +3026,17 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
         const section = el("div", { className: "ano-end-annotations" });
         section.appendChild(el("h3", {}, "Annotations"));
         const list = el("div", { className: "ano-end-ann-list" });
-        let pinIndex = 0;
         for (const ann of summary.annotations) {
           if (ann.type === "session" || ann.type === "recording") continue;
           const card = el("div", { className: "ano-end-ann-card" });
           if (ann.type === "highlight") {
-            card.appendChild(typeLabel("highlight", "Highlight"));
-            if (ann.quote) card.appendChild(el("div", { className: "ano-end-ann-text" }, `"${truncate3(ann.quote, 120)}"`));
+            card.appendChild(typeLabel("highlight", `#${ann.index} Highlight`));
+            if (ann.text) card.appendChild(el("div", { className: "ano-end-ann-text" }, `"${truncate(ann.text, 120)}"`));
           } else if (ann.type === "pin") {
-            pinIndex++;
-            card.appendChild(typeLabel("pin", `Pin #${pinIndex}`));
-            if (ann.target?.description) card.appendChild(el("div", { className: "ano-end-ann-text" }, ann.target.description));
+            card.appendChild(typeLabel("pin", `#${ann.index} Pin`));
+            if (ann.context?.description) card.appendChild(el("div", { className: "ano-end-ann-text" }, ann.context.description));
           } else if (ann.type === "drawing") {
-            card.appendChild(typeLabel("drawing", "Drawing"));
+            card.appendChild(typeLabel("drawing", `#${ann.index} Drawing`));
           }
           if (ann.comment) {
             card.appendChild(el("div", { className: "ano-end-ann-comment" }, ann.comment));
@@ -2999,20 +3046,11 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
         section.appendChild(list);
         dialog.appendChild(section);
       }
-      const actions = el("div", { className: "ano-end-actions" });
-      const dismissBtn = el("button", {
-        onClick: () => dismiss()
-      }, "Dismiss");
-      const linkBtn = el("button", {
-        onClick: () => {
-          linkBtn.textContent = "Uploading\u2026";
-          linkBtn.disabled = true;
-          ctx.events.emit("share");
-        }
-      }, "Get Link");
       const linkResult = el("div", { className: "ano-end-link-result" });
       linkResult.style.display = "none";
-      const linkInput = el("input", { readOnly: true, className: "ano-end-link-input" });
+      const linkInput = document.createElement("input");
+      linkInput.readOnly = true;
+      linkInput.className = "ano-end-link-input";
       const copyBtn = el("button", {
         className: "ano-end-link-copy",
         onClick: () => {
@@ -3026,42 +3064,83 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
       }, "Copy");
       linkResult.appendChild(linkInput);
       linkResult.appendChild(copyBtn);
-      const offComplete = ctx.events.on("share:complete", (url) => {
-        linkBtn.style.display = "none";
-        linkInput.value = url;
-        linkResult.style.display = "";
-      });
-      const offError = ctx.events.on("share:error", () => {
-        linkBtn.textContent = "Failed \u2014 retry";
-        linkBtn.disabled = false;
-      });
-      const origHide = hide;
-      hide = function() {
-        offComplete();
-        offError();
-        origHide();
-      };
-      const exportJsonBtn = el("button", {
-        className: "primary",
-        onClick: () => {
-          ctx.events.emit("export:json");
-          dismiss();
-        }
-      }, "Export JSON");
-      actions.appendChild(dismissBtn);
-      actions.appendChild(linkBtn);
-      if (summary.hasRecording) {
-        const exportVideoBtn = el("button", {
-          onClick: () => {
-            ctx.events.emit("export:video");
-            dismiss();
-          }
-        }, "Export Video");
-        actions.appendChild(exportVideoBtn);
+      const cleanups = [];
+      function makeShareBtn(eventName) {
+        const btn = el("button", { className: "ano-end-export-share" });
+        btn.appendChild(svg("link"));
+        btn.addEventListener("click", () => {
+          btn.disabled = true;
+          let off1, off2;
+          off1 = ctx.events.on("share:complete", (url) => {
+            off1();
+            off2();
+            btn.disabled = false;
+            linkInput.value = url;
+            linkResult.style.display = "";
+          });
+          off2 = ctx.events.on("share:error", () => {
+            off1();
+            off2();
+            btn.disabled = false;
+          });
+          cleanups.push(off1, off2);
+          ctx.events.emit(eventName);
+        });
+        return btn;
       }
-      actions.appendChild(exportJsonBtn);
+      function makeCopyBtn(eventName) {
+        const btn = el("button", { className: "ano-end-export-share" });
+        btn.appendChild(svg("clipboard"));
+        btn.addEventListener("click", () => {
+          ctx.events.emit(eventName);
+          btn.innerHTML = "";
+          btn.appendChild(svg("check"));
+          setTimeout(() => {
+            btn.innerHTML = "";
+            btn.appendChild(svg("clipboard"));
+          }, 2e3);
+        });
+        return btn;
+      }
+      const actions = el("div", { className: "ano-end-actions" });
+      const mdRow = el("div", { className: "ano-end-export-row" });
+      mdRow.appendChild(el(
+        "button",
+        { className: "ano-end-export-dl", onClick: () => ctx.events.emit("export:markdown") },
+        svg("download"),
+        "Markdown"
+      ));
+      mdRow.appendChild(makeShareBtn("share:markdown"));
+      mdRow.appendChild(makeCopyBtn("copy:markdown"));
+      actions.appendChild(mdRow);
+      const jsonRow = el("div", { className: "ano-end-export-row" });
+      jsonRow.appendChild(el(
+        "button",
+        { className: "ano-end-export-dl", onClick: () => ctx.events.emit("export:json") },
+        svg("download"),
+        "JSON"
+      ));
+      jsonRow.appendChild(makeShareBtn("share:json"));
+      jsonRow.appendChild(makeCopyBtn("copy:json"));
+      actions.appendChild(jsonRow);
+      if (summary.hasRecording) {
+        const videoRow = el("div", { className: "ano-end-export-row" });
+        videoRow.appendChild(el(
+          "button",
+          { className: "ano-end-export-dl", onClick: () => ctx.events.emit("export:video") },
+          svg("download"),
+          "Video"
+        ));
+        videoRow.appendChild(makeShareBtn("share:video"));
+        actions.appendChild(videoRow);
+      }
       dialog.appendChild(actions);
       dialog.appendChild(linkResult);
+      const origHide = hide;
+      hide = function() {
+        for (const c of cleanups) c();
+        origHide();
+      };
       overlay.appendChild(dialog);
       shadow.appendChild(overlay);
       document.body.appendChild(host);
@@ -3079,10 +3158,6 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
       label.appendChild(el("span", { className: "dot" }));
       label.appendChild(document.createTextNode(text));
       return label;
-    }
-    function truncate3(str, max) {
-      if (!str || str.length <= max) return str || "";
-      return str.slice(0, max) + "\u2026";
     }
     function formatDuration(ms) {
       const secs = Math.floor((ms || 0) / 1e3);
@@ -3147,12 +3222,8 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
     function onKeyDown(e) {
       const tag = e.target.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") {
-        if (e.key === "Escape") {
-          const isAnoElement3 = e.target.closest?.("[data-ano]") || isInShadow(e.target);
-          if (isAnoElement3) {
-            shortcuts["escape"]();
-            return;
-          }
+        if (e.key === "Escape" && isAnoElement(e.target)) {
+          shortcuts["escape"]();
         }
         return;
       }
@@ -3171,14 +3242,6 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
       if (e.shiftKey) parts.push("shift");
       parts.push(e.key.toLowerCase());
       return parts.join("+");
-    }
-    function isInShadow(el2) {
-      let node = el2;
-      while (node) {
-        if (node.host && node.host.dataset && node.host.dataset.ano !== void 0) return true;
-        node = node.parentNode;
-      }
-      return false;
     }
     function enable() {
       if (active) return;
@@ -3408,7 +3471,7 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
         if (a.type === "highlight") {
           const where = a.context?.element ? ` in <${a.context.element.tagName?.toLowerCase() || "element"}>` : "";
           const path = a.context?.pagePath ? ` (${a.context.pagePath.join(" > ")})` : "";
-          lines.push(`[Highlight] "${truncate2(a.text, 80)}"${where}${path}${comment}`);
+          lines.push(`[Highlight] "${truncate(a.text, 80)}"${where}${path}${comment}`);
         } else if (a.type === "pin") {
           const desc = a.context?.description || `element #${a.index}`;
           lines.push(`[Pin #${a.index}] ${desc}${comment}`);
@@ -3428,9 +3491,117 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
     }
     return lines.join("\n").trim();
   }
-  function truncate2(str, max) {
-    if (!str) return "";
-    return str.length > max ? str.slice(0, max) + "..." : str;
+  function exportMarkdown(store, crossPageAnnotations = []) {
+    const data = buildExportData(store, crossPageAnnotations);
+    const md = buildMarkdown(data);
+    downloadBlob(new Blob([md], { type: "text/markdown" }), `annotations-${formatDate()}.md`);
+    return md;
+  }
+  function buildMarkdown(data) {
+    const lines = [];
+    const { pageTitle, pageUrl, exportedAt, annotations, environment } = data;
+    lines.push(`# Bug Report \u2014 ${pageTitle || pageUrl}`);
+    lines.push(`**URL:** ${pageUrl}`);
+    lines.push(`**Exported:** ${new Date(exportedAt).toLocaleString()}`);
+    lines.push("");
+    const visible = annotations.filter((a) => a.type !== "session" && a.type !== "recording");
+    const byType = {};
+    for (const a of visible) byType[a.type] = (byType[a.type] || 0) + 1;
+    const countParts = [];
+    if (byType.highlight) countParts.push(`${byType.highlight} highlight${byType.highlight !== 1 ? "s" : ""}`);
+    if (byType.pin) countParts.push(`${byType.pin} pin${byType.pin !== 1 ? "s" : ""}`);
+    if (byType.drawing) countParts.push(`${byType.drawing} drawing${byType.drawing !== 1 ? "s" : ""}`);
+    if (countParts.length) {
+      lines.push(`**Annotations:** ${countParts.join(", ")}`);
+      lines.push("");
+    }
+    const session = annotations.find((a) => a.type === "session");
+    if (session) {
+      const secs = Math.round((session.duration || 0) / 1e3);
+      const m = Math.floor(secs / 60);
+      const s = secs % 60;
+      const actionCount = session._anchoring?.actions?.length || 0;
+      const pageCount = session.pages?.length || 0;
+      lines.push(`**Session:** ${m}:${s.toString().padStart(2, "0")} \xB7 ${actionCount} action${actionCount !== 1 ? "s" : ""} \xB7 ${pageCount} page${pageCount !== 1 ? "s" : ""}`);
+      lines.push("");
+    }
+    if (visible.length > 0) {
+      lines.push("## Annotations");
+      lines.push("");
+      for (const a of visible) {
+        if (a.type === "highlight") {
+          lines.push(`### #${a.index} Highlight`);
+          if (a.text) lines.push(`> "${a.text}"`);
+          if (a.context?.element) {
+            const tag = (a.context.element.tagName || "element").toLowerCase();
+            const path = a.context.pagePath?.length ? ` \xB7 ${a.context.pagePath.join(" > ")}` : "";
+            lines.push(`**In:** \`<${tag}>\`${path}`);
+          }
+        } else if (a.type === "pin") {
+          lines.push(`### #${a.index} Pin`);
+          if (a.context?.description) lines.push(`**Element:** \`${a.context.description}\``);
+        } else if (a.type === "drawing") {
+          lines.push(`### #${a.index} Drawing`);
+          if (a.context?.description) {
+            lines.push(`**Over:** ${a.context.description.replace("Drawing over: ", "")}`);
+          }
+        }
+        if (a.comment) lines.push(`**Comment:** ${a.comment}`);
+        lines.push("");
+      }
+    }
+    const actions = session?._anchoring?.actions;
+    if (actions?.length > 0) {
+      lines.push("## Session Log");
+      lines.push("");
+      for (let i = 0; i < actions.length; i++) {
+        const a = actions[i];
+        const t = (a.time / 1e3).toFixed(1);
+        let desc;
+        switch (a.action) {
+          case "click":
+            desc = `Clicked ${a.target}`;
+            break;
+          case "type":
+            desc = `Typed "${truncate(a.value || "", 40)}" in ${a.target}`;
+            break;
+          case "select":
+            desc = `Selected "${a.value}" in ${a.target}`;
+            break;
+          case "check":
+            desc = `${a.value === "checked" ? "Checked" : "Unchecked"} ${a.target}`;
+            break;
+          case "scroll":
+            desc = `Scrolled to ${a.value}`;
+            break;
+          case "submit":
+            desc = `Submitted ${a.target}`;
+            break;
+          case "navigate":
+            desc = `Navigated to ${a.value}`;
+            break;
+          case "error":
+            desc = `ERROR: ${truncate(a.value || "", 80)}`;
+            break;
+          default:
+            desc = a.action.startsWith("console.") ? `${a.action}: ${truncate(a.value || "", 60)}` : `${a.action}${a.target ? " " + a.target : ""}`;
+        }
+        lines.push(`${i + 1}. [${t}s] ${desc}`);
+      }
+      lines.push("");
+    }
+    if (environment) {
+      lines.push("## Environment");
+      lines.push("");
+      lines.push(`- **User Agent:** ${environment.userAgent}`);
+      lines.push(`- **Viewport:** ${environment.viewport?.width}\xD7${environment.viewport?.height}`);
+      lines.push(`- **Screen:** ${environment.screen?.width}\xD7${environment.screen?.height} @ ${environment.screen?.devicePixelRatio}x`);
+      lines.push(`- **Timezone:** ${environment.timezone}`);
+      if (environment.connection?.effectiveType) {
+        lines.push(`- **Connection:** ${environment.connection.effectiveType}`);
+      }
+    }
+    return lines.join("\n");
   }
   function formatDate() {
     const d = /* @__PURE__ */ new Date();
@@ -3531,6 +3702,78 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
     });
     if (!patchRes.ok) throw new Error(`Patch failed: ${patchRes.status}`);
     return fileUrl;
+  }
+  async function shareJSON(store, crossPageAnnotations, events) {
+    try {
+      events.emit("share:uploading");
+      const data = buildExportData(store, crossPageAnnotations);
+      const bytes = new TextEncoder().encode(JSON.stringify(data, null, 2));
+      const url = await tusUpload(bytes, [
+        ["filename", "annotations.json"],
+        ["content-type", "application/json"],
+        ["expires-in", "7d"]
+      ]);
+      try {
+        await navigator.clipboard.writeText(url);
+      } catch {
+      }
+      events.emit("share:complete", url);
+      return url;
+    } catch (err) {
+      events.emit("share:error", err);
+      return null;
+    }
+  }
+  async function shareVideo(store, events) {
+    try {
+      events.emit("share:uploading");
+      let blob = null;
+      let filename = null;
+      for (const ann of store.getAll()) {
+        if ((ann.type === "recording" || ann.type === "session") && ann.blob) {
+          blob = ann.blob;
+          filename = ann.type === "recording" ? `recording-${ann.id}.webm` : `session-${ann.sessionId || ann.id}.webm`;
+          break;
+        }
+      }
+      if (!blob) throw new Error("No video recording found");
+      const bytes = new Uint8Array(await blob.arrayBuffer());
+      const url = await tusUpload(bytes, [
+        ["filename", filename],
+        ["content-type", "video/webm"],
+        ["expires-in", "7d"]
+      ]);
+      try {
+        await navigator.clipboard.writeText(url);
+      } catch {
+      }
+      events.emit("share:complete", url);
+      return url;
+    } catch (err) {
+      events.emit("share:error", err);
+      return null;
+    }
+  }
+  async function shareMarkdown(store, crossPageAnnotations, events) {
+    try {
+      events.emit("share:uploading");
+      const data = buildExportData(store, crossPageAnnotations);
+      const bytes = new TextEncoder().encode(buildMarkdown(data));
+      const url = await tusUpload(bytes, [
+        ["filename", "annotations.md"],
+        ["content-type", "text/markdown"],
+        ["expires-in", "7d"]
+      ]);
+      try {
+        await navigator.clipboard.writeText(url);
+      } catch {
+      }
+      events.emit("share:complete", url);
+      return url;
+    } catch (err) {
+      events.emit("share:error", err);
+      return null;
+    }
   }
   async function shareAnnotations(store, crossPageAnnotations, events) {
     try {
@@ -4125,11 +4368,33 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
     events.on("export:video", () => {
       exportVideo(store);
     });
+    events.on("export:markdown", () => {
+      exportMarkdown(store, getCrossPageAnnotations());
+    });
+    events.on("copy:json", () => {
+      const data = buildExportData(store, getCrossPageAnnotations());
+      navigator.clipboard.writeText(JSON.stringify(data, null, 2)).catch(() => {
+      });
+    });
+    events.on("copy:markdown", () => {
+      const data = buildExportData(store, getCrossPageAnnotations());
+      navigator.clipboard.writeText(buildMarkdown(data)).catch(() => {
+      });
+    });
     events.on("import", () => {
       importFromFile(ctx);
     });
     events.on("share", () => {
       shareAnnotations(store, getCrossPageAnnotations(), events);
+    });
+    events.on("share:json", () => {
+      shareJSON(store, getCrossPageAnnotations(), events);
+    });
+    events.on("share:video", () => {
+      shareVideo(store, events);
+    });
+    events.on("share:markdown", () => {
+      shareMarkdown(store, getCrossPageAnnotations(), events);
     });
     function onHighlightClick(e) {
       const mark = e.target.closest?.(".ano-highlight");
@@ -4139,7 +4404,7 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
         popover.show(mark.dataset.anoId, rect);
         return;
       }
-      if (ctx.mode === "navigate") {
+      if (ctx.mode === "navigate" && e.target?.dataset?.ano === void 0) {
         const drawing = drawingManager.hitTest(e.clientX, e.clientY);
         if (drawing) {
           e.stopPropagation();

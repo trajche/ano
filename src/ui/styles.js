@@ -740,13 +740,22 @@ export const endDialogCSS = `
   }
   .ano-end-actions {
     display: flex;
-    gap: 8px;
-    padding: 16px 20px;
+    flex-direction: column;
+    gap: 6px;
+    padding: 14px 20px;
     border-top: 1px solid var(--ano-border);
-    justify-content: flex-end;
   }
-  .ano-end-actions button {
-    padding: 7px 16px;
+  .ano-end-export-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  .ano-end-export-dl {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 14px;
     border-radius: 8px;
     border: 1px solid var(--ano-border);
     background: var(--ano-bg);
@@ -756,19 +765,33 @@ export const endDialogCSS = `
     cursor: pointer;
     transition: all 0.15s;
   }
-  .ano-end-actions button:hover {
+  .ano-end-export-dl:hover {
     background: var(--ano-bg-hover);
   }
-  .ano-end-actions button.primary {
-    background: var(--ano-accent);
-    color: #fff;
-    border-color: var(--ano-accent);
+  .ano-end-export-dl svg {
+    flex-shrink: 0;
+    opacity: 0.6;
   }
-  .ano-end-actions button.primary:hover {
-    background: var(--ano-accent-hover);
+  .ano-end-export-share {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    flex-shrink: 0;
+    border-radius: 8px;
+    border: 1px solid var(--ano-border);
+    background: var(--ano-bg);
+    color: var(--ano-text-secondary);
+    cursor: pointer;
+    transition: all 0.15s;
   }
-  .ano-end-actions button:disabled {
-    opacity: 0.5;
+  .ano-end-export-share:hover {
+    background: var(--ano-bg-hover);
+    color: var(--ano-text);
+  }
+  .ano-end-export-share:disabled {
+    opacity: 0.4;
     cursor: default;
   }
   .ano-end-link-result {

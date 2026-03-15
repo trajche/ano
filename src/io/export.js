@@ -1,3 +1,5 @@
+import { truncate } from '../utils.js';
+
 export function exportAnnotations(store, crossPageAnnotations = []) {
   const data = buildExportData(store, crossPageAnnotations);
   const json = JSON.stringify(data, null, 2);
@@ -275,9 +277,116 @@ function buildSummary(annotations) {
   return lines.join('\n').trim();
 }
 
-function truncate(str, max) {
-  if (!str) return '';
-  return str.length > max ? str.slice(0, max) + '...' : str;
+export function exportMarkdown(store, crossPageAnnotations = []) {
+  const data = buildExportData(store, crossPageAnnotations);
+  const md = buildMarkdown(data);
+  downloadBlob(new Blob([md], { type: 'text/markdown' }), `annotations-${formatDate()}.md`);
+  return md;
+}
+
+export function buildMarkdown(data) {
+  const lines = [];
+  const { pageTitle, pageUrl, exportedAt, annotations, environment } = data;
+
+  lines.push(`# Bug Report — ${pageTitle || pageUrl}`);
+  lines.push(`**URL:** ${pageUrl}`);
+  lines.push(`**Exported:** ${new Date(exportedAt).toLocaleString()}`);
+  lines.push('');
+
+  // Annotation counts
+  const visible = annotations.filter((a) => a.type !== 'session' && a.type !== 'recording');
+  const byType = {};
+  for (const a of visible) byType[a.type] = (byType[a.type] || 0) + 1;
+  const countParts = [];
+  if (byType.highlight) countParts.push(`${byType.highlight} highlight${byType.highlight !== 1 ? 's' : ''}`);
+  if (byType.pin) countParts.push(`${byType.pin} pin${byType.pin !== 1 ? 's' : ''}`);
+  if (byType.drawing) countParts.push(`${byType.drawing} drawing${byType.drawing !== 1 ? 's' : ''}`);
+  if (countParts.length) {
+    lines.push(`**Annotations:** ${countParts.join(', ')}`);
+    lines.push('');
+  }
+
+  // Session summary
+  const session = annotations.find((a) => a.type === 'session');
+  if (session) {
+    const secs = Math.round((session.duration || 0) / 1000);
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    const actionCount = session._anchoring?.actions?.length || 0;
+    const pageCount = session.pages?.length || 0;
+    lines.push(`**Session:** ${m}:${s.toString().padStart(2, '0')} · ${actionCount} action${actionCount !== 1 ? 's' : ''} · ${pageCount} page${pageCount !== 1 ? 's' : ''}`);
+    lines.push('');
+  }
+
+  // Annotations section
+  if (visible.length > 0) {
+    lines.push('## Annotations');
+    lines.push('');
+    for (const a of visible) {
+      if (a.type === 'highlight') {
+        lines.push(`### #${a.index} Highlight`);
+        if (a.text) lines.push(`> "${a.text}"`);
+        if (a.context?.element) {
+          const tag = (a.context.element.tagName || 'element').toLowerCase();
+          const path = a.context.pagePath?.length ? ` · ${a.context.pagePath.join(' > ')}` : '';
+          lines.push(`**In:** \`<${tag}>\`${path}`);
+        }
+      } else if (a.type === 'pin') {
+        lines.push(`### #${a.index} Pin`);
+        if (a.context?.description) lines.push(`**Element:** \`${a.context.description}\``);
+      } else if (a.type === 'drawing') {
+        lines.push(`### #${a.index} Drawing`);
+        if (a.context?.description) {
+          lines.push(`**Over:** ${a.context.description.replace('Drawing over: ', '')}`);
+        }
+      }
+      if (a.comment) lines.push(`**Comment:** ${a.comment}`);
+      lines.push('');
+    }
+  }
+
+  // Session log
+  const actions = session?._anchoring?.actions;
+  if (actions?.length > 0) {
+    lines.push('## Session Log');
+    lines.push('');
+    for (let i = 0; i < actions.length; i++) {
+      const a = actions[i];
+      const t = (a.time / 1000).toFixed(1);
+      let desc;
+      switch (a.action) {
+        case 'click':    desc = `Clicked ${a.target}`; break;
+        case 'type':     desc = `Typed "${truncate(a.value || '', 40)}" in ${a.target}`; break;
+        case 'select':   desc = `Selected "${a.value}" in ${a.target}`; break;
+        case 'check':    desc = `${a.value === 'checked' ? 'Checked' : 'Unchecked'} ${a.target}`; break;
+        case 'scroll':   desc = `Scrolled to ${a.value}`; break;
+        case 'submit':   desc = `Submitted ${a.target}`; break;
+        case 'navigate': desc = `Navigated to ${a.value}`; break;
+        case 'error':    desc = `ERROR: ${truncate(a.value || '', 80)}`; break;
+        default:
+          desc = a.action.startsWith('console.')
+            ? `${a.action}: ${truncate(a.value || '', 60)}`
+            : `${a.action}${a.target ? ' ' + a.target : ''}`;
+      }
+      lines.push(`${i + 1}. [${t}s] ${desc}`);
+    }
+    lines.push('');
+  }
+
+  // Environment
+  if (environment) {
+    lines.push('## Environment');
+    lines.push('');
+    lines.push(`- **User Agent:** ${environment.userAgent}`);
+    lines.push(`- **Viewport:** ${environment.viewport?.width}×${environment.viewport?.height}`);
+    lines.push(`- **Screen:** ${environment.screen?.width}×${environment.screen?.height} @ ${environment.screen?.devicePixelRatio}x`);
+    lines.push(`- **Timezone:** ${environment.timezone}`);
+    if (environment.connection?.effectiveType) {
+      lines.push(`- **Connection:** ${environment.connection.effectiveType}`);
+    }
+  }
+
+  return lines.join('\n');
 }
 
 function formatDate() {

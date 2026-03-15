@@ -1,3 +1,5 @@
+import { isAnoElement } from './utils.js';
+
 export function createShortcutManager(ctx) {
   let active = false;
 
@@ -36,12 +38,8 @@ export function createShortcutManager(ctx) {
   function onKeyDown(e) {
     const tag = e.target.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
-      if (e.key === 'Escape') {
-        const isAnoElement = e.target.closest?.('[data-ano]') || isInShadow(e.target);
-        if (isAnoElement) {
-          shortcuts['escape']();
-          return;
-        }
+      if (e.key === 'Escape' && isAnoElement(e.target)) {
+        shortcuts['escape']();
       }
       return;
     }
@@ -62,15 +60,6 @@ export function createShortcutManager(ctx) {
     if (e.shiftKey) parts.push('shift');
     parts.push(e.key.toLowerCase());
     return parts.join('+');
-  }
-
-  function isInShadow(el) {
-    let node = el;
-    while (node) {
-      if (node.host && node.host.dataset && node.host.dataset.ano !== undefined) return true;
-      node = node.parentNode;
-    }
-    return false;
   }
 
   function enable() {

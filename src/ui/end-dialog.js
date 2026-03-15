@@ -1,6 +1,7 @@
 import { endDialogCSS } from './styles.js';
 import { el, svg } from './components.js';
 import { applyTheme } from './styles.js';
+import { truncate } from '../utils.js';
 
 export function createEndDialog(ctx) {
   let host = null;
@@ -63,21 +64,19 @@ export function createEndDialog(ctx) {
 
       const list = el('div', { className: 'ano-end-ann-list' });
 
-      let pinIndex = 0;
       for (const ann of summary.annotations) {
         if (ann.type === 'session' || ann.type === 'recording') continue;
 
         const card = el('div', { className: 'ano-end-ann-card' });
 
         if (ann.type === 'highlight') {
-          card.appendChild(typeLabel('highlight', 'Highlight'));
-          if (ann.quote) card.appendChild(el('div', { className: 'ano-end-ann-text' }, `"${truncate(ann.quote, 120)}"`));
+          card.appendChild(typeLabel('highlight', `#${ann.index} Highlight`));
+          if (ann.text) card.appendChild(el('div', { className: 'ano-end-ann-text' }, `"${truncate(ann.text, 120)}"`));
         } else if (ann.type === 'pin') {
-          pinIndex++;
-          card.appendChild(typeLabel('pin', `Pin #${pinIndex}`));
-          if (ann.target?.description) card.appendChild(el('div', { className: 'ano-end-ann-text' }, ann.target.description));
+          card.appendChild(typeLabel('pin', `#${ann.index} Pin`));
+          if (ann.context?.description) card.appendChild(el('div', { className: 'ano-end-ann-text' }, ann.context.description));
         } else if (ann.type === 'drawing') {
-          card.appendChild(typeLabel('drawing', 'Drawing'));
+          card.appendChild(typeLabel('drawing', `#${ann.index} Drawing`));
         }
 
         if (ann.comment) {
@@ -91,26 +90,14 @@ export function createEndDialog(ctx) {
       dialog.appendChild(section);
     }
 
-    // Actions
-    const actions = el('div', { className: 'ano-end-actions' });
-
-    const dismissBtn = el('button', {
-      onClick: () => dismiss(),
-    }, 'Dismiss');
-
-    const linkBtn = el('button', {
-      onClick: () => {
-        linkBtn.textContent = 'Uploading…';
-        linkBtn.disabled = true;
-        ctx.events.emit('share');
-      },
-    }, 'Get Link');
-
-    // Share result — show URL inline
+    // Share result — defined first so makeShareBtn can close over it
     const linkResult = el('div', { className: 'ano-end-link-result' });
     linkResult.style.display = 'none';
 
-    const linkInput = el('input', { readOnly: true, className: 'ano-end-link-input' });
+    const linkInput = document.createElement('input');
+    linkInput.readOnly = true;
+    linkInput.className = 'ano-end-link-input';
+
     const copyBtn = el('button', {
       className: 'ano-end-link-copy',
       onClick: () => {
@@ -124,49 +111,77 @@ export function createEndDialog(ctx) {
     linkResult.appendChild(linkInput);
     linkResult.appendChild(copyBtn);
 
-    const offComplete = ctx.events.on('share:complete', (url) => {
-      linkBtn.style.display = 'none';
-      linkInput.value = url;
-      linkResult.style.display = '';
-    });
+    // Track all event unsubs so we can clean up if dialog closes mid-upload
+    const cleanups = [];
 
-    const offError = ctx.events.on('share:error', () => {
-      linkBtn.textContent = 'Failed — retry';
-      linkBtn.disabled = false;
-    });
-
-    // Clean up listeners when dialog closes
-    const origHide = hide;
-    hide = function () {
-      offComplete();
-      offError();
-      origHide();
-    };
-
-    const exportJsonBtn = el('button', {
-      className: 'primary',
-      onClick: () => {
-        ctx.events.emit('export:json');
-        dismiss();
-      },
-    }, 'Export JSON');
-
-    actions.appendChild(dismissBtn);
-    actions.appendChild(linkBtn);
-
-    if (summary.hasRecording) {
-      const exportVideoBtn = el('button', {
-        onClick: () => {
-          ctx.events.emit('export:video');
-          dismiss();
-        },
-      }, 'Export Video');
-      actions.appendChild(exportVideoBtn);
+    function makeShareBtn(eventName) {
+      const btn = el('button', { className: 'ano-end-export-share' });
+      btn.appendChild(svg('link'));
+      btn.addEventListener('click', () => {
+        btn.disabled = true;
+        let off1, off2;
+        off1 = ctx.events.on('share:complete', (url) => {
+          off1(); off2();
+          btn.disabled = false;
+          linkInput.value = url;
+          linkResult.style.display = '';
+        });
+        off2 = ctx.events.on('share:error', () => {
+          off1(); off2();
+          btn.disabled = false;
+        });
+        cleanups.push(off1, off2);
+        ctx.events.emit(eventName);
+      });
+      return btn;
     }
 
-    actions.appendChild(exportJsonBtn);
+    function makeCopyBtn(eventName) {
+      const btn = el('button', { className: 'ano-end-export-share' });
+      btn.appendChild(svg('clipboard'));
+      btn.addEventListener('click', () => {
+        ctx.events.emit(eventName);
+        btn.innerHTML = '';
+        btn.appendChild(svg('check'));
+        setTimeout(() => { btn.innerHTML = ''; btn.appendChild(svg('clipboard')); }, 2000);
+      });
+      return btn;
+    }
+
+    // Actions — one row per format
+    const actions = el('div', { className: 'ano-end-actions' });
+
+    const mdRow = el('div', { className: 'ano-end-export-row' });
+    mdRow.appendChild(el('button', { className: 'ano-end-export-dl', onClick: () => ctx.events.emit('export:markdown') },
+      svg('download'), 'Markdown'));
+    mdRow.appendChild(makeShareBtn('share:markdown'));
+    mdRow.appendChild(makeCopyBtn('copy:markdown'));
+    actions.appendChild(mdRow);
+
+    const jsonRow = el('div', { className: 'ano-end-export-row' });
+    jsonRow.appendChild(el('button', { className: 'ano-end-export-dl', onClick: () => ctx.events.emit('export:json') },
+      svg('download'), 'JSON'));
+    jsonRow.appendChild(makeShareBtn('share:json'));
+    jsonRow.appendChild(makeCopyBtn('copy:json'));
+    actions.appendChild(jsonRow);
+
+    if (summary.hasRecording) {
+      const videoRow = el('div', { className: 'ano-end-export-row' });
+      videoRow.appendChild(el('button', { className: 'ano-end-export-dl', onClick: () => ctx.events.emit('export:video') },
+        svg('download'), 'Video'));
+      videoRow.appendChild(makeShareBtn('share:video'));
+      actions.appendChild(videoRow);
+    }
+
     dialog.appendChild(actions);
     dialog.appendChild(linkResult);
+
+    // Clean up share listeners when dialog closes
+    const origHide = hide;
+    hide = function () {
+      for (const c of cleanups) c();
+      origHide();
+    };
 
     overlay.appendChild(dialog);
     shadow.appendChild(overlay);
@@ -185,11 +200,6 @@ export function createEndDialog(ctx) {
     label.appendChild(el('span', { className: 'dot' }));
     label.appendChild(document.createTextNode(text));
     return label;
-  }
-
-  function truncate(str, max) {
-    if (!str || str.length <= max) return str || '';
-    return str.slice(0, max) + '…';
   }
 
   function formatDuration(ms) {

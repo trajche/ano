@@ -11,9 +11,9 @@ import { createPopoverManager } from './ui/popover.js';
 import { createEndDialog } from './ui/end-dialog.js';
 import { createShortcutManager } from './shortcuts.js';
 import { injectHostStyles, removeHostStyles } from './ui/styles.js';
-import { exportAnnotations, exportJSON, exportVideo, buildExportData } from './io/export.js';
+import { exportAnnotations, exportJSON, exportVideo, exportMarkdown, buildExportData, buildMarkdown } from './io/export.js';
 import { importFromFile, importData } from './io/import.js';
-import { shareAnnotations } from './io/share.js';
+import { shareAnnotations, shareJSON, shareVideo, shareMarkdown } from './io/share.js';
 
 const STORAGE_PREFIX = 'ano:';
 
@@ -640,6 +640,21 @@ function wireEvents(ctx) {
     exportVideo(store);
   });
 
+  events.on('export:markdown', () => {
+    exportMarkdown(store, getCrossPageAnnotations());
+  });
+
+  // Copy to clipboard
+  events.on('copy:json', () => {
+    const data = buildExportData(store, getCrossPageAnnotations());
+    navigator.clipboard.writeText(JSON.stringify(data, null, 2)).catch(() => {});
+  });
+
+  events.on('copy:markdown', () => {
+    const data = buildExportData(store, getCrossPageAnnotations());
+    navigator.clipboard.writeText(buildMarkdown(data)).catch(() => {});
+  });
+
   // Import
   events.on('import', () => {
     importFromFile(ctx);
@@ -648,6 +663,18 @@ function wireEvents(ctx) {
   // Share
   events.on('share', () => {
     shareAnnotations(store, getCrossPageAnnotations(), events);
+  });
+
+  events.on('share:json', () => {
+    shareJSON(store, getCrossPageAnnotations(), events);
+  });
+
+  events.on('share:video', () => {
+    shareVideo(store, events);
+  });
+
+  events.on('share:markdown', () => {
+    shareMarkdown(store, getCrossPageAnnotations(), events);
   });
 
   // Click on highlight marks → show popover
@@ -661,7 +688,8 @@ function wireEvents(ctx) {
     }
 
     // Click on drawing strokes → show popover
-    if (ctx.mode === 'navigate') {
+    // Skip if click came from our own UI (shadow hosts / markers all carry data-ano)
+    if (ctx.mode === 'navigate' && e.target?.dataset?.ano === undefined) {
       const drawing = drawingManager.hitTest(e.clientX, e.clientY);
       if (drawing) {
         e.stopPropagation();

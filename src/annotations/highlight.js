@@ -2,6 +2,7 @@ import { createTextQuoteSelector } from '../anchoring/text-quote.js';
 import { createTextPositionSelector } from '../anchoring/text-position.js';
 import { resolveHighlight } from '../anchoring/resolver.js';
 import { generateCSSSelector } from '../anchoring/selector.js';
+import { isAnoElement, truncate } from '../utils.js';
 
 export function createHighlightManager(ctx) {
   const { store, config } = ctx;
@@ -13,16 +14,34 @@ export function createHighlightManager(ctx) {
     if (active) return;
     active = true;
     document.addEventListener('mouseup', onMouseUp, true);
+    document.addEventListener('mousedown', onCapturePrevent, true);
+    document.addEventListener('click', onCapturePrevent, true);
+    document.addEventListener('dblclick', onCapturePrevent, true);
+    document.addEventListener('contextmenu', onCapturePrevent, true);
   }
 
   function disable() {
     active = false;
     document.removeEventListener('mouseup', onMouseUp, true);
+    document.removeEventListener('mousedown', onCapturePrevent, true);
+    document.removeEventListener('click', onCapturePrevent, true);
+    document.removeEventListener('dblclick', onCapturePrevent, true);
+    document.removeEventListener('contextmenu', onCapturePrevent, true);
+  }
+
+  // Intercept events in capture phase so other page scripts don't react
+  // to clicks/selections while the annotation tool is active.
+  // stopPropagation() prevents the event from reaching any child elements,
+  // but does not call preventDefault() so native text selection still works.
+  function onCapturePrevent(e) {
+    if (!isAnoElement(e.target)) e.stopPropagation();
   }
 
   function onMouseUp(e) {
     // Don't capture if clicking inside Ano UI
     if (isAnoElement(e.target)) return;
+    // Consume the mouseup so page scripts don't react to the selection gesture
+    e.stopPropagation();
 
     const selection = window.getSelection();
     if (!selection || selection.isCollapsed || !selection.rangeCount) return;
@@ -296,10 +315,6 @@ export function createHighlightManager(ctx) {
     return text.trim() || (el.textContent || '').trim().slice(0, 200);
   }
 
-  function truncate(str, max) {
-    return str.length > max ? str.slice(0, max) + '...' : str;
-  }
-
   function destroy() {
     disable();
     removeAll();
@@ -317,15 +332,3 @@ export function createHighlightManager(ctx) {
   };
 }
 
-function isAnoElement(el) {
-  if (!el) return false;
-  if (el.closest && el.closest('[data-ano]')) return true;
-  // Check shadow DOM hosts
-  let node = el;
-  while (node) {
-    if (node.host && node.host.dataset && node.host.dataset.ano !== undefined) return true;
-    if (node.dataset && node.dataset.ano !== undefined) return true;
-    node = node.parentNode;
-  }
-  return false;
-}

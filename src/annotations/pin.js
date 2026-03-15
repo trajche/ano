@@ -1,4 +1,5 @@
 import { generateCSSSelector, getTargetMeta, resolveTarget } from '../anchoring/selector.js';
+import { isAnoElement, truncate } from '../utils.js';
 
 export function createPinManager(ctx) {
   const { store, config } = ctx;
@@ -12,13 +13,23 @@ export function createPinManager(ctx) {
     if (active) return;
     active = true;
     createOverlay();
-    document.addEventListener('mousemove', onMouseMove, true);
+    document.addEventListener('mousedown', onCapturePrevent, true);
+    document.addEventListener('click', onCapturePrevent, true);
+    document.addEventListener('dblclick', onCapturePrevent, true);
+    document.addEventListener('contextmenu', onCapturePrevent, true);
   }
 
   function disable() {
     active = false;
     removeOverlay();
-    document.removeEventListener('mousemove', onMouseMove, true);
+    document.removeEventListener('mousedown', onCapturePrevent, true);
+    document.removeEventListener('click', onCapturePrevent, true);
+    document.removeEventListener('dblclick', onCapturePrevent, true);
+    document.removeEventListener('contextmenu', onCapturePrevent, true);
+  }
+
+  function onCapturePrevent(e) {
+    if (!isAnoElement(e.target)) e.stopPropagation();
   }
 
   function createOverlay() {
@@ -84,10 +95,6 @@ export function createPinManager(ctx) {
     } else {
       hoverOutline.style.display = 'none';
     }
-  }
-
-  function onMouseMove() {
-    // Keep hover outline tracking when not using overlay approach
   }
 
   function onOverlayClick(e) {
@@ -316,10 +323,6 @@ export function createPinManager(ctx) {
     return (el.textContent || '').trim().slice(0, 150);
   }
 
-  function truncate(str, max) {
-    return str.length > max ? str.slice(0, max) + '...' : str;
-  }
-
   function destroy() {
     disable();
     removeAll();
@@ -340,13 +343,3 @@ export function createPinManager(ctx) {
   };
 }
 
-function isAnoElement(el) {
-  if (!el) return false;
-  let node = el;
-  while (node) {
-    if (node.dataset && node.dataset.ano !== undefined) return true;
-    if (node.host && node.host.dataset && node.host.dataset.ano !== undefined) return true;
-    node = node.parentNode;
-  }
-  return false;
-}

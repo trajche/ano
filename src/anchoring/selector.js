@@ -35,10 +35,7 @@ export function generateCSSSelector(element) {
     path.unshift('body');
   }
 
-  const selector = path.join(' > ');
-
-  if (isUnique(selector)) return selector;
-  return selector;
+  return path.join(' > ');
 }
 
 export function getTargetMeta(element) {

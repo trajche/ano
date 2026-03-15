@@ -1,4 +1,5 @@
 import { generateCSSSelector } from '../anchoring/selector.js';
+import { isAnoElement, truncate } from '../utils.js';
 
 const STORAGE_KEY = 'ano-session';
 const SENSITIVE_PATTERNS = /password|cc-|cvv|ssn|secret|token/i;
@@ -76,17 +77,6 @@ export function createSessionManager(ctx) {
     if (el.type === 'password') return true;
     const ac = el.autocomplete || '';
     return SENSITIVE_PATTERNS.test(ac);
-  }
-
-  function isAnoElement(el) {
-    if (!el) return false;
-    if (el.closest?.('[data-ano]')) return true;
-    let node = el;
-    while (node) {
-      if (node.host && node.host.dataset && node.host.dataset.ano !== undefined) return true;
-      node = node.parentNode;
-    }
-    return false;
   }
 
   // ── Record action ──
@@ -348,7 +338,6 @@ export function createSessionManager(ctx) {
     };
 
     // Reset
-    const stoppedId = sessionId;
     actions = [];
     pages = [];
     startTime = 0;
@@ -486,13 +475,8 @@ export function createSessionManager(ctx) {
     getSessionId,
     getStartTime,
     getActionCount,
-    checkResume,
     removeSession,
     destroy,
   };
 }
 
-function truncate(str, max) {
-  if (!str) return '';
-  return str.length > max ? str.slice(0, max) + '...' : str;
-}
