@@ -1,1 +1,1 @@
-javascript:void((function(){if(window.Ano){Ano.destroy();return}var s=document.createElement('script');s.src='https://ano.phpless.digitalno.de/dist/ano.min.js';s.onload=function(){Ano.init({mode:'navigate'})};document.head.appendChild(s)})())
+javascript:void((function(){if(window.Ano){Ano.destroy();return}var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/gh/trajche/ano@main/dist/ano.min.js';s.onload=function(){Ano.init({mode:'navigate'})};document.head.appendChild(s)})())

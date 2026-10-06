@@ -34,7 +34,7 @@ async function build() {
   console.log(`dist/ano.min.js built (${(stat.size / 1024).toFixed(1)} KB)`);
 
   // Bookmarklet loader
-  const defaultURL = 'https://ano.phpless.digitalno.de/dist/ano.min.js';
+  const defaultURL = 'https://cdn.jsdelivr.net/gh/trajche/ano@main/dist/ano.min.js';
   const bookmarkletJS = `javascript:void((function(){if(window.Ano){Ano.destroy();return}var s=document.createElement('script');s.src='${defaultURL}';s.onload=function(){Ano.init({mode:'navigate'})};document.head.appendChild(s)})())`;
   fs.writeFileSync('dist/bookmarklet.js', bookmarkletJS);
   console.log('dist/bookmarklet.js built');

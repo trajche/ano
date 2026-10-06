@@ -7,8 +7,6 @@ export function el(tag, attrs = {}, ...children) {
       Object.assign(element.style, value);
     } else if (key.startsWith('on') && typeof value === 'function') {
       element.addEventListener(key.slice(2).toLowerCase(), value);
-    } else if (key === 'html') {
-      element.innerHTML = value;
     } else {
       element.setAttribute(key, value);
     }

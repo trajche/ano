@@ -5,7 +5,7 @@ QA bug reporting tool for the browser. Testers highlight, pin, draw, and record 
 ## Quick Start
 
 ```html
-<script src="https://ano.phpless.digitalno.de/dist/ano.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/trajche/ano@main/dist/ano.min.js"></script>
 <script>
   Ano.init();
 </script>
@@ -65,7 +65,7 @@ Ano.init({
 
 ## Bookmarklet
 
-Use Ano on any website without embedding. Visit [ano.phpless.digitalno.de](https://ano.phpless.digitalno.de/#bookmarklet) to set up the bookmarklet.
+Use Ano on any website without embedding. Run `npm run build` and open `dist/bookmarklet.html`, then drag the **Ano** link to your bookmarks bar.
 
 ## Build
 
