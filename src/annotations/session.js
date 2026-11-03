@@ -451,9 +451,10 @@ export function createSessionManager(ctx) {
   // ── Check for active session from previous page ──
 
   function checkResume() {
+    if (sessionId) return false; // already running (e.g. started right after init)
     try {
       const raw = sessionStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
+      if (!raw) return false;
       const saved = JSON.parse(raw);
       if (saved && saved.active) {
         resume(saved);
@@ -461,8 +462,10 @@ export function createSessionManager(ctx) {
           sessionId: saved.sessionId,
           startTime: saved.startTime,
         });
+        return true;
       }
     } catch { /* corrupt data — ignore */ }
+    return false;
   }
 
   // Auto-check on creation
@@ -470,6 +473,7 @@ export function createSessionManager(ctx) {
 
   return {
     start,
+    checkResume,
     stop,
     isActive,
     getSessionId,

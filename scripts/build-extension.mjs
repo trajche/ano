@@ -1,13 +1,13 @@
 // Packages extension/ for Chrome and Firefox.
 // Usage: node scripts/build-extension.mjs [version]
-// Output: dist/extension/{chrome,firefox}/ + dist/extension/ano-{chrome,firefox}-<version>.zip
+// Output: dist/extension/{chrome,firefox}/ + dist/extension/ano-{chrome,firefox,source}-<version>.zip
 import fs from 'fs';
 import path from 'path';
 import { execFileSync } from 'child_process';
 
 const SRC = 'extension';
 const OUT = 'dist/extension';
-const FILES = ['background.js', 'ano.min.js', 'icons'];
+const FILES = ['background.js', 'options.html', 'options.js', 'ano.min.js', 'icons'];
 
 // Firefox add-on ID — permanent once submitted to AMO
 const GECKO_ID = 'ano@ai';
@@ -39,15 +39,24 @@ const targets = {
   })(),
 };
 
-fs.rmSync(OUT, { recursive: true, force: true });
+// Only replace what this build produces — signed .xpi files and older zips stay
+const zip = (file, args, cwd) => {
+  const out = path.resolve(OUT, file);
+  fs.rmSync(out, { force: true }); // zip appends to an existing archive
+  execFileSync('zip', ['-qr', out, ...args, '-x', '*.DS_Store'], { cwd });
+  console.log(`${path.relative('.', out)} built`);
+};
 
 for (const [name, manifest] of Object.entries(targets)) {
   const dir = path.join(OUT, name);
+  fs.rmSync(dir, { recursive: true, force: true });
   fs.mkdirSync(dir, { recursive: true });
   for (const f of FILES) fs.cpSync(path.join(SRC, f), path.join(dir, f), { recursive: true });
   fs.writeFileSync(path.join(dir, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
-
-  const zip = path.resolve(OUT, `ano-${name}-${version}.zip`);
-  execFileSync('zip', ['-qr', zip, '.', '-x', '*.DS_Store'], { cwd: dir });
-  console.log(`${path.relative('.', zip)} built`);
+  zip(`ano-${name}-${version}.zip`, ['.'], dir);
 }
+
+// Source archive for AMO review (ano.min.js is minified)
+zip(`ano-source-${version}.zip`, [
+  'src', 'scripts', 'extension', 'esbuild.config.mjs', 'package.json', 'package-lock.json', 'README.md',
+], '.');

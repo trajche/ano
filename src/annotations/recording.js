@@ -136,8 +136,8 @@ export function createRecordingManager(ctx) {
   // ── Public API ──
 
   function startRecording() {
-    if (active) return;
-    openPopup();
+    if (active) return true;
+    return openPopup();
   }
 
   function stopRecording() {
@@ -159,11 +159,12 @@ export function createRecordingManager(ctx) {
     if (!popupWindow) {
       console.warn('[Ano] Popup blocked — allow popups for screen recording.');
       ctx.events.emit('recording:cancelled');
-      return;
+      return false;
     }
     popupWindow.document.open();
     popupWindow.document.write(RECORDER_HTML);
     popupWindow.document.close();
+    return true;
   }
 
   // ── When recording finishes ──

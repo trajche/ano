@@ -31,6 +31,8 @@ Ano.init({
   drawWidth: 3,
   shortcuts: true,
   videoRecording: false,
+  closeOnDismiss: false,   // destroy Ano when the report is closed (fires `ano:closed` on window)
+  onRecording: null,       // ({ blob, filename, report }) => Promise, called when a session ends with video
   sessionMaxDuration: 300000,
 });
 ```

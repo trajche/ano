@@ -10,6 +10,8 @@ const DEFAULTS = {
   recordFrameRate: 30,
   sessionMaxDuration: 300000,
   videoRecording: false,
+  closeOnDismiss: false,
+  onRecording: null,
 };
 
 export function createConfig(overrides = {}) {

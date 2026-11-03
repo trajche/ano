@@ -413,16 +413,20 @@ function wireEvents(ctx) {
   events.on('session:start', () => {
     if (ctx.sessionState !== 'idle') return;
 
+    // A session carried over from the previous page takes precedence
+    if (ctx.sessionManager.checkResume()) return;
+
     const sessionId = ctx.sessionManager.start();
     ctx.sessionState = 'active';
     ctx.currentSessionId = sessionId;
 
-    // Start video recording if toggled on
-    if (ctx.toolbar.getVideoToggleState() && ctx.recordingManager) {
-      ctx.recordingManager.startRecording();
-    }
+    // Start video recording if toggled on. The recorder popup needs a user gesture —
+    // without one (e.g. started by the extension) offer a Record button instead.
+    const wantsVideo = ctx.toolbar.getVideoToggleState() && !!ctx.recordingManager;
+    const hasGesture = navigator.userActivation?.isActive !== false;
+    const recorderOpened = wantsVideo && hasGesture && ctx.recordingManager.startRecording();
 
-    ctx.toolbar.renderActive(ctx.sessionManager.getStartTime());
+    ctx.toolbar.renderActive(ctx.sessionManager.getStartTime(), { offerRecord: wantsVideo && !recorderOpened });
     ctx.setMode('navigate');
 
     // Broadcast session start to child frames so they track sessionState correctly
@@ -501,6 +505,24 @@ function wireEvents(ctx) {
       hasRecording: !!blob,
       annotations: sessionAnnotations,
     });
+
+    // Hand the finished recording to the host (e.g. the extension's webhook upload)
+    if (blob && ctx.config.onRecording) {
+      ctx.endDialog.setStatus('Uploading recording\u2026');
+      Promise.resolve()
+        .then(() => ctx.config.onRecording({
+          blob,
+          filename: `session-${sessionData.sessionId}.webm`,
+          report: buildExportData(store, getCrossPageAnnotations()),
+        }))
+        .then(
+          () => ctx.endDialog.setStatus('Recording uploaded', 'ok'),
+          (err) => {
+            console.warn('[Ano] Recording upload failed:', err);
+            ctx.endDialog.setStatus('Recording upload failed', 'error');
+          },
+        );
+    }
   });
 
   events.on('session:dismissed', () => {
@@ -510,6 +532,12 @@ function wireEvents(ctx) {
       ctx.recordingManager.clearBlob();
     }
     clearInstance();
+
+    // Host (e.g. the browser extension) wants Ano fully off once the report is closed
+    if (ctx.config.closeOnDismiss) {
+      destroyInstance();
+      window.dispatchEvent(new CustomEvent('ano:closed'));
+    }
   });
 
   events.on('session:action', (count) => {

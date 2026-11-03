@@ -438,6 +438,26 @@ export const toolbarCSS = `
   .ano-end-session:hover {
     background: var(--ano-danger-hover);
   }
+  .ano-record-start {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 12px;
+    margin-right: 6px;
+    border-radius: 8px;
+    border: 1px solid var(--ano-danger);
+    background: transparent;
+    color: var(--ano-danger);
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: inherit;
+    white-space: nowrap;
+  }
+  .ano-record-start svg {
+    width: 14px;
+    height: 14px;
+  }
   .ano-btn-label {
     font-family: inherit;
   }
@@ -725,6 +745,15 @@ export const endDialogCSS = `
     letter-spacing: 0.5px;
     margin-top: 2px;
   }
+  .ano-end-status {
+    padding: 0 20px 16px;
+    font-size: 12px;
+    text-align: center;
+    color: #64748b;
+  }
+  .ano-end-status:empty { display: none; }
+  .ano-end-status.ok { color: #16a34a; }
+  .ano-end-status.error { color: #dc2626; }
   .ano-end-badge {
     grid-column: 1 / -1;
     display: flex;

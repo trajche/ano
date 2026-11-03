@@ -45,7 +45,9 @@ var Ano = (() => {
     recordMaxDuration: 3e4,
     recordFrameRate: 30,
     sessionMaxDuration: 3e5,
-    videoRecording: false
+    videoRecording: false,
+    closeOnDismiss: false,
+    onRecording: null
   };
   function createConfig(overrides = {}) {
     return { ...DEFAULTS, ...overrides };
@@ -1167,6 +1169,26 @@ var Ano = (() => {
   .ano-end-session:hover {
     background: var(--ano-danger-hover);
   }
+  .ano-record-start {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 12px;
+    margin-right: 6px;
+    border-radius: 8px;
+    border: 1px solid var(--ano-danger);
+    background: transparent;
+    color: var(--ano-danger);
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: inherit;
+    white-space: nowrap;
+  }
+  .ano-record-start svg {
+    width: 14px;
+    height: 14px;
+  }
   .ano-btn-label {
     font-family: inherit;
   }
@@ -1449,6 +1471,15 @@ var Ano = (() => {
     letter-spacing: 0.5px;
     margin-top: 2px;
   }
+  .ano-end-status {
+    padding: 0 20px 16px;
+    font-size: 12px;
+    text-align: center;
+    color: #64748b;
+  }
+  .ano-end-status:empty { display: none; }
+  .ano-end-status.ok { color: #16a34a; }
+  .ano-end-status.error { color: #dc2626; }
   .ano-end-badge {
     grid-column: 1 / -1;
     display: flex;
@@ -2157,8 +2188,8 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
       }
     };
     function startRecording() {
-      if (active) return;
-      openPopup();
+      if (active) return true;
+      return openPopup();
     }
     function stopRecording() {
       channel.postMessage({ type: "stop" });
@@ -2175,11 +2206,12 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
       if (!popupWindow) {
         console.warn("[Ano] Popup blocked \u2014 allow popups for screen recording.");
         ctx.events.emit("recording:cancelled");
-        return;
+        return false;
       }
       popupWindow.document.open();
       popupWindow.document.write(RECORDER_HTML);
       popupWindow.document.close();
+      return true;
     }
     function onRecordingStopped(data) {
       active = false;
@@ -2631,9 +2663,10 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
       sessionId = null;
     }
     function checkResume() {
+      if (sessionId) return false;
       try {
         const raw = sessionStorage.getItem(STORAGE_KEY);
-        if (!raw) return;
+        if (!raw) return false;
         const saved = JSON.parse(raw);
         if (saved && saved.active) {
           resume(saved);
@@ -2641,13 +2674,16 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
             sessionId: saved.sessionId,
             startTime: saved.startTime
           });
+          return true;
         }
       } catch {
       }
+      return false;
     }
     setTimeout(checkResume, 50);
     return {
       start,
+      checkResume,
       stop,
       isActive,
       getSessionId,
@@ -2762,7 +2798,7 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
         toolbarEl.appendChild(label);
       }
     }
-    function renderActive(startTime) {
+    function renderActive(startTime, { offerRecord = false } = {}) {
       clearTimer();
       buttons = {};
       toolbarEl.innerHTML = "";
@@ -2787,6 +2823,20 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
       status.appendChild(timerEl);
       countEl = el("span", { className: "ano-session-count" }, "(0)");
       status.appendChild(countEl);
+      if (offerRecord) {
+        const recordBtn = el(
+          "button",
+          {
+            className: "ano-record-start",
+            onClick: () => {
+              if (ctx.recordingManager.startRecording()) recordBtn.remove();
+            }
+          },
+          svg("record"),
+          el("span", { className: "ano-btn-label" }, "Record")
+        );
+        status.appendChild(recordBtn);
+      }
       const endBtn = el(
         "button",
         {
@@ -2983,6 +3033,7 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
   function createEndDialog(ctx) {
     let host = null;
     let shadow = null;
+    let statusEl = null;
     function show(summary) {
       hide();
       host = document.createElement("div");
@@ -3134,6 +3185,8 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
       }
       dialog.appendChild(actions);
       dialog.appendChild(linkResult);
+      statusEl = el("div", { className: "ano-end-status" });
+      dialog.appendChild(statusEl);
       const origHide = hide;
       hide = function() {
         for (const c of cleanups) c();
@@ -3172,7 +3225,13 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
         host.remove();
         host = null;
         shadow = null;
+        statusEl = null;
       }
+    }
+    function setStatus(text, tone = "") {
+      if (!statusEl) return;
+      statusEl.textContent = text;
+      statusEl.className = `ano-end-status ${tone}`.trim();
     }
     function isOpen() {
       return host !== null;
@@ -3180,7 +3239,7 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
     function destroy3() {
       hide();
     }
-    return { show, hide, dismiss, isOpen, destroy: destroy3 };
+    return { show, hide, dismiss, setStatus, isOpen, destroy: destroy3 };
   }
 
   // src/shortcuts.js
@@ -4179,13 +4238,14 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
     const { store, events, popover, highlightManager, pinManager, drawingManager } = ctx;
     events.on("session:start", () => {
       if (ctx.sessionState !== "idle") return;
+      if (ctx.sessionManager.checkResume()) return;
       const sessionId = ctx.sessionManager.start();
       ctx.sessionState = "active";
       ctx.currentSessionId = sessionId;
-      if (ctx.toolbar.getVideoToggleState() && ctx.recordingManager) {
-        ctx.recordingManager.startRecording();
-      }
-      ctx.toolbar.renderActive(ctx.sessionManager.getStartTime());
+      const wantsVideo = ctx.toolbar.getVideoToggleState() && !!ctx.recordingManager;
+      const hasGesture = navigator.userActivation?.isActive !== false;
+      const recorderOpened = wantsVideo && hasGesture && ctx.recordingManager.startRecording();
+      ctx.toolbar.renderActive(ctx.sessionManager.getStartTime(), { offerRecord: wantsVideo && !recorderOpened });
       ctx.setMode("navigate");
       for (const iframe of document.querySelectorAll("iframe")) {
         try {
@@ -4246,6 +4306,20 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
         hasRecording: !!blob,
         annotations: sessionAnnotations
       });
+      if (blob && ctx.config.onRecording) {
+        ctx.endDialog.setStatus("Uploading recording\u2026");
+        Promise.resolve().then(() => ctx.config.onRecording({
+          blob,
+          filename: `session-${sessionData.sessionId}.webm`,
+          report: buildExportData(store, getCrossPageAnnotations())
+        })).then(
+          () => ctx.endDialog.setStatus("Recording uploaded", "ok"),
+          (err) => {
+            console.warn("[Ano] Recording upload failed:", err);
+            ctx.endDialog.setStatus("Recording upload failed", "error");
+          }
+        );
+      }
     });
     events.on("session:dismissed", () => {
       ctx.sessionState = "idle";
@@ -4254,6 +4328,10 @@ window.onbeforeunload=function(){if(rec&&rec.state==='recording')doStop()};
         ctx.recordingManager.clearBlob();
       }
       clearInstance();
+      if (ctx.config.closeOnDismiss) {
+        destroyInstance();
+        window.dispatchEvent(new CustomEvent("ano:closed"));
+      }
     });
     events.on("session:action", (count) => {
       ctx.toolbar.updateCount(count);

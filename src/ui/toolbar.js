@@ -66,7 +66,7 @@ export function createToolbar(ctx) {
     }
   }
 
-  function renderActive(startTime) {
+  function renderActive(startTime, { offerRecord = false } = {}) {
     clearTimer();
     buttons = {};
     toolbarEl.innerHTML = '';
@@ -98,6 +98,19 @@ export function createToolbar(ctx) {
 
     countEl = el('span', { className: 'ano-session-count' }, '(0)');
     status.appendChild(countEl);
+
+    if (offerRecord) {
+      const recordBtn = el('button', {
+        className: 'ano-record-start',
+        onClick: () => {
+          if (ctx.recordingManager.startRecording()) recordBtn.remove();
+        },
+      },
+        svg('record'),
+        el('span', { className: 'ano-btn-label' }, 'Record'),
+      );
+      status.appendChild(recordBtn);
+    }
 
     const endBtn = el('button', {
       className: 'ano-end-session',

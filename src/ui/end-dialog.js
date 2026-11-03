@@ -6,6 +6,7 @@ import { truncate } from '../utils.js';
 export function createEndDialog(ctx) {
   let host = null;
   let shadow = null;
+  let statusEl = null;
 
   function show(summary) {
     hide();
@@ -176,6 +177,9 @@ export function createEndDialog(ctx) {
     dialog.appendChild(actions);
     dialog.appendChild(linkResult);
 
+    statusEl = el('div', { className: 'ano-end-status' });
+    dialog.appendChild(statusEl);
+
     // Clean up share listeners when dialog closes
     const origHide = hide;
     hide = function () {
@@ -219,7 +223,14 @@ export function createEndDialog(ctx) {
       host.remove();
       host = null;
       shadow = null;
+      statusEl = null;
     }
+  }
+
+  function setStatus(text, tone = '') {
+    if (!statusEl) return;
+    statusEl.textContent = text;
+    statusEl.className = `ano-end-status ${tone}`.trim();
   }
 
   function isOpen() {
@@ -230,5 +241,5 @@ export function createEndDialog(ctx) {
     hide();
   }
 
-  return { show, hide, dismiss, isOpen, destroy };
+  return { show, hide, dismiss, setStatus, isOpen, destroy };
 }

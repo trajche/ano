@@ -38,12 +38,13 @@ This data is included in the exported JSON only. It is not sent anywhere unless 
 
 ## Chrome Extension
 
-The Ano Chrome extension requires two permissions:
+The Ano browser extension requires these permissions:
 
 - **activeTab** — to detect if Ano is active on the current tab when you click the icon
 - **scripting** — to inject the bundled Ano script into the active tab
+- **storage** — to save your settings on your device
 
-The extension does not access any tabs in the background, does not run persistently, and does not communicate with any external servers.
+The extension does not access any tabs in the background and does not run persistently. It only contacts an external server if you set a webhook URL in its settings: each session recording and its report (annotations, actions, environment metadata) is then sent to that URL. You choose the destination; we do not receive this data.
 
 ## Third Parties
 
